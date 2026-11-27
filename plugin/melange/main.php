@@ -2432,9 +2432,25 @@ function mel_msg($title, $parts = array(), $tone = null)
             $text[] = trim($p);
     }
     $a = mel_dialog($title, $lines, array('OK' => mel_close_and(null)));
-    if ($tone !== false)
-        Mel::$dlg['desc'] = array('key' => '', 'title' => $title, 'text' => implode(MEL_MSG_SEP, $text), 'tone' => $tone,
-            'ok' => 'OK');
+    return $tone === false ? $a : mel_msg_say($a, $title, implode(MEL_MSG_SEP, $text), 'OK', $tone);
+}
+
+// Window $a of the shell, whole as it is returned, is a message that says one thing and only closes by its one
+// button $ok: title $title, text $text ('' none) - said so (Mel::$dlg): over a screen of ours the dialog of ours in
+// tone $tone (err, warn; null: err with a text, warn without). mel_msg, and a message whose window of the shell is
+// not that of mel_msg (its lines cut another way, another label, keys of its own).
+/**
+ * @param MelAction $a
+ * @param string $title
+ * @param string $text
+ * @param string $ok
+ * @param string|null $tone
+ * @return MelAction
+ */
+function mel_msg_say($a, $title, $text, $ok, $tone = null)
+{
+    Mel::$dlg = array('shell' => $a, 'desc' => array('key' => '', 'title' => $title, 'text' => $text, 'tone' => $tone,
+        'ok' => $ok));
     return $a;
 }
 

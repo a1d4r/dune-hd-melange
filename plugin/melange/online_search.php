@@ -1,7 +1,9 @@
 <?php
 // "Онлайн" on the Dune: the window "Ищу онлайн…" of ticks (the search of Lampac, then the replies of its
 // balancers, each call of php_server a few seconds) and its result: the online list (view_online.php) or a window
-// (nothing online, no answer). PHP 5.3.6, firmware API only. Types (MelLpRun, MelLpView): phpstan-types.neon.
+// (nothing online, no answer). The search is one step a tick (mel_lpv_wait_tick) that replies as a tick of a wait window
+// (MelWaitTick, kit_dlg.php): the fields of the window, or the end; the dialog of the shell is a host over it
+// (mel_lpv_tick). PHP 5.3.6, firmware API only. Types (MelLpRun, MelLpView, MelLpSearchView): phpstan-types.neon.
 
 // The timer of the window between its ticks, ms: a tick is a request itself.
 define('MEL_LPV_TICK_MS', 100);
@@ -102,13 +104,17 @@ function mel_lpv_redraw($in)
     return mel_list_replace($r['st']);
 }
 
-// Controls of the window of run $run: the sources found, the balancers asked and the variants
-// of them (both lines always: the window keeps its height), "Отмена".
+// What the search of run $run shows now, the fields of a wait window (MelWaitTick, kit_dlg.php) - the window of ours
+// takes them as they are, the dialog of the shell shows its two lines (shell_lines: mel_lpv_search_defs). The replies of
+// the balancers: stage, those asked of those found («Опрошено: 6 из 7»); count, the variants so far («вариантов:
+// 31»); share of the bar, the asked of the found; late, a variant is there (the second button of the window needs
+// one: the owner 27.11.2026). Before them (the ids, the search): stage, the balancers found so far, none yet - that
+// they are answering; no count, the empty bar, late false.
 /**
  * @param MelLpRun $run
- * @return list<array<string, mixed>>
+ * @return MelLpSearchView
  */
-function mel_lpv_search_defs($run)
+function mel_lpv_search_view($run)
 {
     $lang = $run['st']['lang'];
     $v = $run['v'];
@@ -123,32 +129,67 @@ function mel_lpv_search_defs($run)
             $wait++;
     }
     $n = max(0, count($v['sources']) - $rch - $wait);
-    $l1 = mel_lpv_tr($lang, 'lp_search_found', array('n' => $n));
-    $l2 = $run['phase'] === 'replies' ? mel_lpv_tr($lang, 'lp_search_asking', array('k' => max(0, $v['next'] - $rch), 'n' => $n,
-        'r' => count($v['rows']))) : mel_tr($lang, 'lp_search_wait');
+    $found = mel_lpv_tr($lang, 'lp_search_found', array('n' => $n));
+    if ($run['phase'] !== 'replies')
+        return array('stage' => $n > 0 ? $found : mel_tr($lang, 'lp_search_wait'), 'count' => '', 'share' => 0.0,
+            'late' => false, 'shell_lines' => array($found, mel_tr($lang, 'lp_search_wait')));
+    $k = max(0, $v['next'] - $rch);
+    $stage = mel_lpv_tr($lang, 'lp_search_asked', array('k' => $k, 'n' => $n));
+    $count = mel_lpv_tr($lang, 'lp_search_variants', array('r' => count($v['rows'])));
+    return array('stage' => $stage, 'count' => $count, 'share' => $n > 0 ? min(1.0, $k / $n) : 0.0,
+        'late' => count($v['rows']) > 0, 'shell_lines' => array($found, "$stage, $count"));
+}
+
+// Controls of the dialog of the shell of run $run, of the fields of its search (mel_lpv_search_view, shell_lines): the
+// sources found, the balancers asked and the variants of them (both lines always: the window keeps its height),
+// "Отмена".
+/**
+ * @param MelLpRun $run
+ * @return list<array<string, mixed>>
+ */
+function mel_lpv_search_defs($run)
+{
+    $lang = $run['st']['lang'];
+    $view = mel_lpv_search_view($run);
     return array(
-        mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l1)),
-        mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l2)),
+        mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $view['shell_lines'][0])),
+        mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $view['shell_lines'][1])),
         mel_ctl('cancel', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => mel_tr($lang, 'lp_cancel'),
             GuiButtonDef::width => 300, GuiButtonDef::push_action => mel_input('lp_cancel', array('sid' => $run['sid'])))));
 }
 
-// lp_tick of the window $in->sid: one step of its run - /externalids, the start of the search
-// (events), a /lifeevents (or the one events without life: up to MEL_LP_SEARCH_MAX s), the
-// replies of a few balancers - then the window redrawn and its timer again, or closed with the
-// result (mel_lpv_result).
+// A message of the search of run $run, title $title and text $text ('' none) with "Закрыть": the window of the shell
+// of lines $lines (of a search of "Источники…" its button and RETURN to lp_cancel: mel_lpv_close_act,
+// mel_lpv_redraw_keys), said as a message (mel_msg_say) - the end of a wait of ours by it is the dialog of ours
+// (mel_wait_end).
 /**
- * @param stdClass $in
+ * @param MelLpRun $run
+ * @param string $title
+ * @param list<string> $lines
+ * @param string $text
  * @return MelAction
  */
-function mel_lpv_tick($in)
+function mel_lpv_msg($run, $title, $lines, $text)
 {
-    $run = MelLpv::$run;
-    if (!$run || !isset($in->sid) || $in->sid !== $run['sid'])
-    {
-        mel_log('lampac: tick of a window gone');
-        return mel_close_and(null);
-    }
+    $ok = mel_tr($run['st']['lang'], 'lp_close');
+    return mel_msg_say(mel_lpv_redraw_keys(mel_dialog($title, $lines, array($ok => mel_lpv_close_act($run['sid']))),
+        $run['sid']), $title, $text, $ok);
+}
+
+// One step of the search of run $run, the tick of a wait window (MelWaitTick, kit_dlg.php: the window of ours calls
+// it by name with the run its data; the dialog of the shell by mel_lpv_tick), $sec s after its open: /externalids,
+// the start of the search (events), a /lifeevents (or the one events without life: up to MEL_LP_SEARCH_MAX s), the
+// replies of a few balancers. It goes on: the fields of the window (mel_lpv_search_view) and data, the run after the
+// step. The end (mel_wait_end): post - the result (mel_lpv_result: the online list, the releases with the yellow
+// line); or a message - nothing online, no answer (mel_lpv_down), the profile of Lampac gone - dialog, its
+// description for the window of ours, and shell, its window of the shell.
+/**
+ * @param MelLpRun $run
+ * @param int $sec
+ * @return array{post: MelAction}|array{dialog: array<string, mixed>, shell: MelAction}|array{stage: string, count: string, share: float, late: bool, shell_lines: array{string, string}, data: MelLpRun}
+ */
+function mel_lpv_wait_tick($run, $sec)
+{
     // A tick is an operation of its own: the Lampac of the list of the run (its profile, spec v2 §2.2), not the main one.
     list(, $lp) = mel_op_use($run['st']['prof'], $run['st']['lp_prof']);
     $base = Mel::$settings['lp'];
@@ -156,16 +197,11 @@ function mel_lpv_tick($in)
     // with the auth of another Lampac, nor to another one with the balancers of this one.
     if ($lp !== $run['st']['lp_prof'] || ($run['search'] && $run['search']['base'] !== $base))
     {
-        MelLpv::$run = null;
         mel_log("lampac: window {$run['sid']}: its profile of Lampac gone or changed on the page, closed with no request");
-        return mel_close_and(mel_lpv_redraw_keys(mel_dialog(mel_tr($run['st']['lang'], 'src_changed'), array(),
-            array(mel_tr($run['st']['lang'], 'lp_close') => mel_lpv_close_act($run['sid']))), $run['sid']));
+        return mel_wait_end(mel_lpv_msg($run, mel_tr($run['st']['lang'], 'src_changed'), array(), ''));
     }
     if ($base === '')
-    {
-        MelLpv::$run = null;
-        return mel_close_and(mel_lpv_down($run, 'down', 'no address'));
-    }
+        return mel_wait_end(mel_lpv_down($run, 'down', 'no address'));
     if ($run['phase'] === 'ids')
     {
         list($run['v']['title'], $why) = mel_lp_externalids($base, $run['v']['title']);
@@ -212,10 +248,7 @@ function mel_lpv_tick($in)
             if ($run['v']['off'])
                 mel_log('lampac: sources off: ' . implode(', ', $run['v']['off']));
             if (!$s['sources'] && $s['err'] !== '' && $s['err'] !== 'accsdb')
-            {
-                MelLpv::$run = null;
-                return mel_close_and(mel_lpv_down($run, $s['err'], $s['detail']));
-            }
+                return mel_wait_end(mel_lpv_down($run, $s['err'], $s['detail']));
             if ($s['err'] === 'accsdb')
                 $run['v']['why'][] = array('src' => '', 'path' => '', 'why' => 'accsdb', 'detail' => $s['detail']);
             $run['v']['q'] = $s['q'];
@@ -224,12 +257,39 @@ function mel_lpv_tick($in)
             $run['poll'] = mel_lp_poll_start(count($run['v']['rows']));
         }
     }
-    MelLpv::$run = $run;
     if ($run['phase'] === 'done')
     {
-        mel_lpv_run_end();
-        return mel_close_and(mel_lpv_result($run));
+        mel_lpv_run_over($run);
+        return mel_wait_end(mel_lpv_result($run));
     }
+    $view = mel_lpv_search_view($run);
+    $view['data'] = $run;
+    return $view;
+}
+
+// lp_tick of the dialog of the shell $in->sid: one step of its run (mel_lpv_wait_tick), then its reply as the shell takes
+// it - the end: the dialog closed, then the result or the message as its window of the shell; else the dialog redrawn
+// of the run after the step and its timer again.
+/**
+ * @param stdClass $in
+ * @return MelAction
+ */
+function mel_lpv_tick($in)
+{
+    $run = MelLpv::$run;
+    if (!$run || !isset($in->sid) || $in->sid !== $run['sid'])
+    {
+        mel_log('lampac: tick of a window gone');
+        return mel_close_and(null);
+    }
+    MelLpv::$run = null;
+    $r = mel_lpv_wait_tick($run, 0);
+    if (isset($r['post']))
+        return mel_close_and($r['post']);
+    if (isset($r['dialog']))
+        return mel_close_and($r['shell']);
+    $run = $r['data'];
+    MelLpv::$run = $run;
     return mel_lpv_redraw_keys(array(
         GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
         GuiAction::data => array(
@@ -266,10 +326,8 @@ function mel_lpv_rch_n($v)
     return $n + count($at);
 }
 
-// The end of the search window MelLpv::$run: done (mel_lpv_tick), cancelled (lp_cancel) or left (a window closed by the
-// shell, then a new search: mel_lpv_search_open). In its replies or done: its sources into "Источники…" of its own profile
-// of Lampac (mel_lpv_run_seen; the pair of the operation may be another one - that of the main profile, of a new title),
-// that profile gone or not ready - none kept. MelLpv::$run none, the pair of the operation as it was.
+// The end of the search of the dialog of the shell, MelLpv::$run: cancelled (lp_cancel) or left (a window closed by
+// the shell, then a new search: mel_lpv_search_open) - its sources kept (mel_lpv_run_over), MelLpv::$run none.
 /**
  * @return void
  */
@@ -277,7 +335,20 @@ function mel_lpv_run_end()
 {
     $run = MelLpv::$run;
     MelLpv::$run = null;
-    if (!$run || ($run['phase'] !== 'replies' && $run['phase'] !== 'done'))
+    if ($run)
+        mel_lpv_run_over($run);
+}
+
+// The search of run $run is over: done (mel_lpv_wait_tick), cancelled or left. In its replies or done: its sources into
+// "Источники…" of its own profile of Lampac (mel_lpv_run_seen; the pair of the operation may be another one - that of
+// the main profile, of a new title), that profile gone or not ready - none kept. The pair of the operation as it was.
+/**
+ * @param MelLpRun $run
+ * @return void
+ */
+function mel_lpv_run_over($run)
+{
+    if ($run['phase'] !== 'replies' && $run['phase'] !== 'done')
         return;
     list($rel, $lp) = array(Mel::$settings['prof'], Mel::$settings['lp_prof']);
     list(, $l) = mel_op_use($run['st']['prof'], $run['st']['lp_prof']);
@@ -288,7 +359,7 @@ function mel_lpv_run_end()
     mel_op_use($rel, $lp);
 }
 
-// The sources of run $run (mel_lpv_run_end, of the pair of the run) into "Источники…" (mel_lpv_srcs_seen): those of its
+// The sources of run $run (mel_lpv_run_over, of the pair of the run) into "Источники…" (mel_lpv_srcs_seen): those of its
 // search ("Ещё N": of its list) but, by path, those of a refusal of RCH (the reason rch) and those of rch true of events
 // not asked yet (from next on: cancelled before them, they may refuse so too) - not there, as when rch true hid them.
 /**
@@ -319,7 +390,7 @@ function mel_lpv_run_seen($run)
 }
 
 // Lampac of run $run did not answer ($why, $detail: MelLpWhy): a title with releases (back) -
-// those with the yellow line; else the window "Онлайн не отвечает: <its source>".
+// those with the yellow line; else the message "Онлайн не отвечает: <its source>" (mel_lpv_msg).
 /**
  * @param MelLpRun $run
  * @param string $why
@@ -339,8 +410,8 @@ function mel_lpv_down($run, $why, $detail)
     $name = mel_src_name(Mel::$settings['lp_prof']);
     $title = $name !== '' ? mel_gc_cut_w(str_replace('{name}', $name, mel_tr($lang, 'lp_down_src')), 1000, MEL_DIALOG_LINE_W) :
         mel_tr($lang, 'lp_down');
-    return mel_lpv_redraw_keys(mel_dialog($title, mel_dialog_lines(mel_lpv_why($lang, $why, $detail)),
-        array(mel_tr($lang, 'lp_close') => mel_lpv_close_act($run['sid']))), $run['sid']);
+    $text = mel_lpv_why($lang, $why, $detail);
+    return mel_lpv_msg($run, $title, mel_dialog_lines($text), $text);
 }
 
 // The button "Закрыть" of a window of run $sid: of a search of "Источники…" lp_cancel (mel_lpv_redraw), else closed.
@@ -355,7 +426,7 @@ function mel_lpv_close_act($sid)
 
 // The end of run $run: the online list (the rows in the order of "Источники…", mel_lpv_srcs_pick: the sources
 // asked in it; the cursor of a new search on the row of the key of the run, else on its balancer,
-// after "Ещё N" on the first new row), its screen opened or the list screen replaced; nothing at all - the window "Онлайн для
+// after "Ещё N" on the first new row), its screen opened or the list screen replaced; nothing at all - the message "Онлайн для
 // «…» не нашлось" (a title with releases, back: those with the yellow line). All the sources found turned off in
 // "Источники…" (not back): the list of no row all the same, with the yellow line of it - MENU there turns them on.
 /**
@@ -379,13 +450,17 @@ function mel_lpv_result($run)
         if ($run['back'])
             return mel_lpv_releases($st, mel_tr($lang, 'lp_note_empty'));
         $lines = array();
+        $text = array();
         foreach ($v['why'] as $w)
         {
-            if ($w['why'] === 'accsdb' && $w['detail'] !== '')
-                $lines = array_merge($lines, mel_dialog_lines($w['detail']));
+            if ($w['why'] !== 'accsdb' || $w['detail'] === '')
+                continue;
+            $lines = array_merge($lines, mel_dialog_lines($w['detail']));
+            if (trim($w['detail']) !== '')
+                $text[] = trim($w['detail']);
         }
-        return mel_lpv_redraw_keys(mel_dialog(mel_lpv_tr($lang, 'lp_none', array('title' => $mv['title'])),
-            array_slice($lines, 0, 2), array(mel_tr($lang, 'lp_close') => mel_lpv_close_act($run['sid']))), $run['sid']);
+        return mel_lpv_msg($run, mel_lpv_tr($lang, 'lp_none', array('title' => $mv['title'])), array_slice($lines, 0, 2),
+            implode(MEL_MSG_SEP, array_unique($text)));
     }
     MelLpv::$redraw = null;
     $rows = $v['rows'];
