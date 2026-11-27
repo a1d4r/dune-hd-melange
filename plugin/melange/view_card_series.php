@@ -657,7 +657,8 @@ function mel_oc_row_changes($c, $l, $old, $new)
 
 // --- Keys.
 
-// ENTER on an episode not out yet: "Серия выйдет 16 ноября" (no date: "not out yet"), no streams asked. Not an error
+// ENTER on an episode not out yet: "Серия выйдет 16 ноября" (a year not this one (UTC) - with it: "4 января 2027",
+// owner 27.11.2026; no date: "not out yet"), no streams asked. Not an error
 // (owner 27.11.2026): a window that asks (mel_ask) with the clock in grey and OK (in focus); to the screen of the card
 // ($to, see mel_oc_ep_watch) "Всё равно искать" too - a date of the meta may be wrong: card_anyway of $to with s, e of
 // the episode (mel_oc_anyway). No screen of the card (null): OK alone.
@@ -669,8 +670,8 @@ function mel_oc_row_changes($c, $l, $old, $new)
  */
 function mel_oc_soon_msg($ep, $lang, $to = null)
 {
-    $t = $ep['date'] !== '' ? str_replace('{d}', mel_oc_day($ep['date'], $lang, false, false), mel_tr($lang, 'card_ep_soon')) :
-        mel_tr($lang, 'card_ep_soon_nodate');
+    $t = $ep['date'] !== '' ? str_replace('{d}', mel_oc_day($ep['date'], $lang, false, substr($ep['date'], 0, 4) !== gmdate('Y')),
+        mel_tr($lang, 'card_ep_soon')) : mel_tr($lang, 'card_ep_soon_nodate');
     mel_log('card: ' . ($to !== null ? "own {$to['c']}: " : '') . "S{$ep['s']}E{$ep['e']} not out yet, the message");
     $buttons = array(mel_btn_ok());
     if ($to !== null)
