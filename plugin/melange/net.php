@@ -412,6 +412,27 @@ if (!function_exists('mel_ts_call'))
     }
 }
 
+// TorrServe Silo at $base (the address of TorrServer)? A server written anew with another API (no /echo: 404 there,
+// as of any program), not supported. Its open GET /api/system/ping answers 200 {"status":"ok"} (by the sources of
+// Silo.3). One request by mel_ts_call, $total s as the /echo of the caller; asked only when /echo was answered, and
+// not by a TorrServer MatriX: a working one and one that is down get no request more.
+/**
+ * @param string $base
+ * @param int|float $total
+ * @return bool
+ */
+function mel_ts_silo($base, $total)
+{
+    $r = mel_ts_call("$base/api/system/ping", null, $total);
+    if ($r['err'] !== '' || $r['code'] !== 200)
+        return false;
+    // The answer of Silo is 15 bytes; a long body is not parsed (megabytes of JSON would end the memory of PHP).
+    if (strlen($r['body']) > 256)
+        return false;
+    $j = json_decode($r['body'], true);
+    return is_array($j) && isset($j['status']) && $j['status'] === 'ok';
+}
+
 // Requests at once at most (mel_net_multi: mel_http_get_many of main.php, mel_lp_get_many): the catalog server allows
 // 180 a minute, the dunemdb API as many; Lampac answers 5 balancers at once in the time of the slowest (a server without
 // a cache: 0.2-0.7 s each).

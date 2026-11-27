@@ -452,7 +452,7 @@ function mel_quick_put($s, $conf)
 // mel_setup_params) and of the window "No config" of play_action ($p['card'],
 // $p['lang']: the language of the card). TorrServer is asked first
 // (mel_ts_alive): none is no stop, the catalog and search work without it -
-// said after. The config of its profile (mel_quick_profile; none - the one of
+// said after (TorrServe Silo there: said so). The config of its profile (mel_quick_profile; none - the one of
 // the cell of the server of Melange in P2P no other profile has; none - made by
 // mel_conf_create with the settings of mel_quick_settings). settings.json is
 // written only after it, read again just before (as the page), the profile in
@@ -471,7 +471,7 @@ function mel_setup_quick($p)
     $s = mel_settings_read($dir, $why);
     if ($why !== '')
         return mel_error('err_quick_read');
-    $ts = mel_ts_alive();
+    $ts = mel_ts_alive($silo);
     $k = mel_quick_profile($s);
     $conf = $k >= 0 ? $s['profiles'][$k]['conf'] : null;
     $cell = mel_settings_conf(mel_quick_settings($s));
@@ -527,23 +527,25 @@ function mel_setup_quick($p)
         mel_profile_tag($k, $s['profiles'][$k]) . ($s['profiles'][$k]['id'] === $s['src_main'] ? ', the main one' : ''));
     // The screen of the catalog under it is read by this operation too.
     mel_settings_load();
-    return mel_quick_done($p, $ts);
+    return mel_quick_done($p, $ts, $silo);
 }
 
 // What the quick setup ($p of mel_setup_quick) shows when done; $ts:
-// TorrServer answered. The window of a card: set up, play again (TorrServe
+// TorrServer answered; $silo: TorrServe Silo did (its text, ts_err_silo, in
+// place of quick_no_ts). The window of a card: set up, play again (TorrServe
 // first, if none). The settings screen: replaced at once (mel_setup_refresh);
 // no TorrServer - a dialog first, in the language of the Dune.
 /**
  * @param array<string, string> $p
  * @param bool $ts
+ * @param bool $silo
  * @return array<string, mixed>
  */
-function mel_quick_done($p, $ts)
+function mel_quick_done($p, $ts, $silo)
 {
     $card = isset($p['card']);
     $lang = $card && isset($p['lang']) ? $p['lang'] : mel_catv_lang();
-    $lines = $ts ? array() : mel_dialog_lines(mel_tr($lang, 'quick_no_ts'));
+    $lines = $ts ? array() : mel_dialog_lines(mel_tr($lang, $silo ? 'ts_err_silo' : 'quick_no_ts'));
     if ($card)
         return mel_dialog(mel_tr($lang, 'quick_done'), array_merge($lines, mel_dialog_lines(mel_tr($lang, 'quick_again'))),
             array('OK' => mel_close_and(null)));

@@ -218,6 +218,7 @@ ts_down_dune = Запустите приложение TorrServe на Дюне �
 ts_down_other = Запустите TorrServer или проверьте адрес в настройках Melange: {addr}
 ts_down_noaddr = Запустите TorrServer или проверьте адрес в настройках Melange
 ts_err_old = Ответил не TorrServer MatriX
+ts_err_silo = TorrServe Silo не поддерживается: установите TorrServe MatriX
 ts_err_add = TorrServer не принял раздачу
 ts_err_gone = Списка файлов нет, TorrServer закрыл раздачу: мало сидов
 ts_err_timeout = За минуту нет списка файлов: у раздачи мало сидов

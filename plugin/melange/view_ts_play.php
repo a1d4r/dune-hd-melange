@@ -202,8 +202,9 @@ function mel_tsl_find($hash)
 // ("aiots:<hash>:<id>": the item played of a playlist), else h and f of recent_action_params, from wh_pos (s) - the
 // start of it (mel_tsl_start; no preload from a position). Not in the list (past MEL_TSL_MAX, an active torrent never
 // saved) or the list not to read (not 200, not a list: tsl_err_bad): the start by its hash (mel_tsl_bare);
-// TorrServer has it no more - "get" says it (404, tsl_err_gone). TorrServer down, its login, «Без торрентов»: the error
-// dialog of a start (mel_ts_fail, mel_torrents_off).
+// TorrServer has it no more - "get" says it (404, tsl_err_gone). TorrServer down, its login, TorrServe Silo there
+// (ts_err_silo of the list or of "get": no start by the hash), «Без торрентов»: the error dialog of a start
+// (mel_ts_fail, mel_torrents_off).
 /**
  * @param stdClass $in
  * @return MelAction|null

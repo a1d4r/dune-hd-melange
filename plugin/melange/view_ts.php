@@ -91,7 +91,8 @@ function mel_tsl_read()
 
 // The title (the cause) and the text (what to do) of error $key of the list (mel_tsl_load) in language $lang (4B, 4C of
 // the designer); of tsl_err_bad with its detail $detail (the code, "not a list") its line of the address after the text
-// (mel_tsl_addr), none of another error (no answer: the error of curl).
+// (mel_tsl_addr), none of another error (no answer: the error of curl). TorrServe Silo there (ts_err_silo): the title
+// of tsl_err_bad, the text of ts_err_silo.
 /**
  * @param string $key
  * @param string $lang
@@ -100,6 +101,8 @@ function mel_tsl_read()
  */
 function mel_tsl_err_texts($key, $lang, $detail)
 {
+    if ($key === 'ts_err_silo')
+        return array(mel_tr($lang, 'tsl_bad_title'), mel_tr($lang, $key));
     $names = array('ts_err_down' => 'down', 'ts_err_auth' => 'auth', 'ts_err_auth_bad' => 'auth_bad', 'tsl_err_bad' => 'bad',
         'ts_err_off' => 'off');
     $n = isset($names[$key]) ? $names[$key] : 'bad';
@@ -122,7 +125,8 @@ function mel_tsl_addr($lang, $detail)
 
 // The kit error screen of error $key of the list (mel_tsl_load; $detail: its detail) over screen $from (4B, 4C of the
 // designer): its title and text (mel_tsl_err_texts); no answer - «Повторить», «Настройки» and the address of TorrServer
-// under them; not a list - «Повторить», «Настройки» and the address with the code (mel_tsl_addr); the password, «Без
+// under them; not a list - «Повторить», «Настройки» and the address with the code (mel_tsl_addr); TorrServe Silo - as
+// not a list, the address with no code; the password, «Без
 // торрентов» - «Настройки». «Назад» after them (mel_ks_rows_error).
 /**
  * @param string $key
@@ -136,9 +140,10 @@ function mel_tsl_error($key, $detail, $from)
     $retry = array('label' => mel_tr($lang, 'ks_retry'), 'icon' => 'k_icon_rotate-ccw',
         'act' => mel_tsl_open_act($from));
     $setup = array('label' => mel_tr($lang, 'setup_menu'), 'icon' => 'k_icon_settings', 'act' => mel_setup_open_act($from));
-    $own = array('ts_err_down' => array($retry, $setup), 'tsl_err_bad' => array($retry, $setup));
+    $own = array('ts_err_down' => array($retry, $setup), 'tsl_err_bad' => array($retry, $setup),
+        'ts_err_silo' => array($retry, $setup));
     $d = array('buttons' => isset($own[$key]) ? $own[$key] : array($setup));
-    if ($key === 'ts_err_down' || $key === 'tsl_err_bad')
+    if (isset($own[$key]))
         $d['detail'] = mel_tsl_addr($lang, $key === 'tsl_err_bad' ? $detail : '');
     mel_log("ts section: error $key");
     list($title, $text) = mel_tsl_err_texts($key, $lang, '');

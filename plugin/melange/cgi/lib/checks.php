@@ -382,10 +382,18 @@ function mel_cgi_ts_check($base, $auth = '')
         return array(false, mel_cgi_l('Нет ответа за 3 с', 'No answer within 3 s'));
     if ($ok === false && $errno !== 23)
         return array(false, mel_cgi_l('Не отвечает', 'No answer') . " (curl $errno)");
+    $v = trim(substr($r['body'], 0, 64));
+    $matrix = $code === 200 && preg_match('/^MatriX\.[0-9A-Za-z.\-]{1,20}\z/', $v);
+    // Answered, and not by a TorrServer MatriX: TorrServe Silo (mel_ts_silo of net.php, one request more) has its own text.
+    if (!$matrix && mel_ts_silo($base, 3))
+    {
+        mel_cgi_log('ts check: silo');
+        return array(false, mel_cgi_l('TorrServe Silo не поддерживается: установите TorrServe MatriX',
+            'TorrServe Silo is not supported: install TorrServe MatriX'));
+    }
     if ($code !== 200)
         return array(false, sprintf(mel_cgi_l('Ответил HTTP %d — это не TorrServer?', 'It answered HTTP %d: not a TorrServer?'), $code));
-    $v = trim(substr($r['body'], 0, 64));
-    if (!preg_match('/^MatriX\.[0-9A-Za-z.\-]{1,20}\z/', $v))
+    if (!$matrix)
         return array(false, mel_cgi_l('Ответил не TorrServer MatriX (старый 1.1?)', 'Not a TorrServer MatriX (an old 1.1?)'));
     // /echo is open always; /settings (as /torrents of the plugin) asks for the login when TorrServer has one.
     $r = mel_ts_call("$base/settings", '{"action":"get"}', 3, $auth);

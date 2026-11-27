@@ -68,6 +68,7 @@ The row refreshes by itself a couple of seconds after the catalog opens or the n
 
 - "On TorrServer" says "TorrServer is not responding": start TorrServer or fix the address in Melange settings → TorrServer ("Retry" and "Settings" are on the same screen).
 - After quick setup the Dune says "TorrServer does not answer": install and start TorrServe ([Quick start](start.en.md)).
+- "TorrServe Silo is not supported: install TorrServe MatriX": install TorrServe MatriX ([Quick start](start.en.md#manually)).
 - "Check" shows red text: see [Troubleshooting](troubleshooting.en.md).
 - Few releases: choose "Everywhere" in "Where to look for releases"; if the JacRed server doesn't answer, see [JacRed](jacred.en.md).
 

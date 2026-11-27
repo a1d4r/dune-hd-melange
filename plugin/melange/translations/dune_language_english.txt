@@ -218,6 +218,7 @@ ts_down_dune = Start the TorrServe app on the Dune or check the address in the M
 ts_down_other = Start TorrServer or check the address in the Melange settings: {addr}
 ts_down_noaddr = Start TorrServer or check the address in the Melange settings
 ts_err_old = The reply is not from TorrServer MatriX
+ts_err_silo = TorrServe Silo is not supported: install TorrServe MatriX
 ts_err_add = TorrServer did not accept the release
 ts_err_gone = No file list, TorrServer closed the release: few seeders
 ts_err_timeout = No file list within a minute: the release has few seeders
