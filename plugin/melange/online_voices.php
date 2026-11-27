@@ -53,15 +53,14 @@ function mel_lpv_flt_panel($st)
  */
 function mel_lpv_flt_open($in, $st)
 {
-    list($sel, $top) = mel_lpv_pos_keep($in, $st);
+    list($scr) = mel_gc_scr_live($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null, true);
     $d = mel_lpv_flt_panel($st);
     if (!$d)
     {
         mel_log('lampac: voices: none in the list, no panel');
         return null;
     }
-    list($acts) = mel_lpv_screen($st, mel_lpv_lines($st['lp']));
-    return mel_kp_open(mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top)), $d);
+    return mel_kp_open($scr, $d);
 }
 
 // lp_flt_done: "Готово" of the panel "Озвучка" of the online list $st (the panel itself or its submenu left with

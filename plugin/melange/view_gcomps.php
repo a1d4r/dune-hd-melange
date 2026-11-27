@@ -1566,13 +1566,57 @@ function mel_gc_scr($rid, $acts, $sel)
     return array('owner' => $rid, 'map' => $acts + mel_mlv_key_acts("streams:$rid"), 'timer' => null, 'sel' => $sel);
 }
 
+// The record (mel_gc_scr) of live list $st as its view has it - the online list (lp_on: mel_lpv_screen), else the list
+// of releases (mel_gc_screen) - with the cursor of the shell's sel_state $raw, else its last one (mel_lpv_pos,
+// mel_gc_pos). $keep: that cursor kept as the last one of the list (Mel::$state) - the menus: the actions of their
+// items come with no sel_state of the shell. The one place the record of a live list is made for what opens over it
+// (a panel, a dialog); its full view makes its own with the view. -> array(the record, sel, top).
+/**
+ * @param MelState $st
+ * @param mixed $raw
+ * @param bool $keep
+ * @return array{MelOvlScreen, int, int}
+ */
+function mel_gc_scr_live($st, $raw, $keep = false)
+{
+    if (!empty($st['lp_on']) && isset($st['lp']))
+    {
+        list($sel, $top) = mel_lpv_pos($st['lp'], $raw);
+        if ($keep)
+            Mel::$state['lp']['gc'] = array($sel, $top);
+        list($acts) = mel_lpv_screen($st, mel_lpv_lines($st['lp']));
+    }
+    else
+    {
+        list($sel, $top) = mel_gc_pos($st, $raw);
+        if ($keep)
+            Mel::$state['gc'] = array($sel, $top);
+        list($acts) = mel_gc_screen($st, $sel);
+    }
+    return array(mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top)), $sel, $top);
+}
+
+// The record (mel_gc_scr) of the screen of a list gone (replaced, php_server restarted) by its rid $rid: the keys every
+// list has, without those of an episode (they do nothing there) - of the online list when control $control of the
+// input is its own (lp_) -, the sel_state $raw the shell sent.
+/**
+ * @param string $rid
+ * @param string $control
+ * @param mixed $raw
+ * @return MelOvlScreen
+ */
+function mel_gc_scr_gone($rid, $control, $raw)
+{
+    return mel_gc_scr($rid, strpos($control, 'lp_') === 0 ? mel_lpv_keys($rid) : mel_gc_keys($rid, false),
+        is_string($raw) ? $raw : null);
+}
+
 // The record of the screen (mel_gc_scr) of the list of releases or the online list whose own input $in of control
 // $control is: a key of its map or the action of an item of its panel (it comes after the close) - the reply to it is
 // shown over the list itself (mel_scr_of, main.php). null: no rid, or an input not of the screen - of a window of the
 // shell over it (its ticks and buttons: ts_tick, lp_tick, lp_cancel, lp_find, pre_via), of the player (finish, next,
-// lp_next), of the screen of the seasons (gc_chosen, lp_chosen). A live list: as its view has it (mel_gc_screen,
-// mel_lpv_screen), the cursor of the sel_state of the input, else its last one; a list gone (replaced, php_server
-// restarted): as mel_gc_menu has it - the keys by the rid (of the online list by the control), the sel_state sent.
+// lp_next), of the screen of the seasons (gc_chosen, lp_chosen). A live list: mel_gc_scr_live, its cursor not kept
+// (nothing follows a dialog but its close); a list gone: mel_gc_scr_gone.
 /**
  * @param stdClass $in
  * @param string $control
@@ -1589,19 +1633,9 @@ function mel_gc_scr_in($in, $control)
     $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;
     $st = Mel::$state;
     if (!$st || $st['rid'] !== $rid)
-        return mel_gc_scr($rid, strpos($control, 'lp_') === 0 ? mel_lpv_keys($rid) : mel_gc_keys($rid, false),
-            is_string($raw) ? $raw : null);
-    if (!empty($st['lp_on']) && isset($st['lp']))
-    {
-        list($sel, $top) = mel_lpv_pos($st['lp'], $raw);
-        list($acts) = mel_lpv_screen($st, mel_lpv_lines($st['lp']));
-    }
-    else
-    {
-        list($sel, $top) = mel_gc_pos($st, $raw);
-        list($acts) = mel_gc_screen($st, $sel);
-    }
-    return mel_gc_scr($rid, $acts, mel_gc_state($sel, $top));
+        return mel_gc_scr_gone($rid, $control, $raw);
+    list($scr) = mel_gc_scr_live($st, $raw);
+    return $scr;
 }
 
 // Panel 'hint' of the hint line of list $st (mel_gc_screen; from MEL_GC_LX on MEL_GC_HINT_MID) with the cursor on line
@@ -2142,8 +2176,7 @@ function mel_gc_actions($st, $row)
 // gc_menu (MENU) of a list -> the panel "Действия" over its screen (mel_kp_open; mel_gc_actions), built for the row
 // under the cursor, the cursor kept as the last one of the list (the actions of the items come with no sel_state of
 // the shell). A screen of a lost list (replaced, php_server restarted): "Настройки Melange" only, in the language of
-// the live list, else of the shell; the record of that screen by its rid - its keys without those of an episode (they
-// do nothing there). No rid: nothing.
+// the live list, else of the shell; the record of that screen by its rid (mel_gc_scr_gone). No rid: nothing.
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -2158,15 +2191,12 @@ function mel_gc_menu($in)
         $lang = $st ? $st['lang'] : mel_catv_lang();
         $rid = isset($in->rid) && is_string($in->rid) ? $in->rid : '';
         $tt = mel_gc_text($lang === 'ru' ? 'ru' : 'en');
-        return mel_kp_open(mel_gc_scr($rid, mel_gc_keys($rid, false), is_string($raw) ? $raw : null),
+        return mel_kp_open(mel_gc_scr_gone($rid, 'gc_menu', $raw),
             array('title' => $tt['actions'], 'groups' => array(array(mel_setup_item($lang)))));
     }
-    list($sel, $top) = mel_gc_pos($st, $raw);
-    Mel::$state['gc'] = array($sel, $top);
-    list($acts) = mel_gc_screen($st, $sel);
+    list($scr, $sel) = mel_gc_scr_live($st, $raw, true);
     // The items of a release take its row; on the line of the group (-1) none of them.
-    return mel_kp_open(mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top)),
-        mel_gc_actions($st, mel_gc_row_of(mel_gc_lv($st), $sel)));
+    return mel_kp_open($scr, mel_gc_actions($st, mel_gc_row_of(mel_gc_lv($st), $sel)));
 }
 
 // ENTER on the line of the group of the tier of list $st (lines $lv): folded - unfolded, the cursor on its first row;
