@@ -92,6 +92,7 @@ sort_menu = Sort
 sort_note = Choose the current one again to reverse the order
 kp_done = Done
 kp_count = Selected: {n} of {m}
+kp_count_all = Selected: all
 kp_move = Move
 src_kind_torrents = Torrents
 src_kind_own = Own config

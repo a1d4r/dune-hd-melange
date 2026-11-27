@@ -386,7 +386,7 @@ parameters:
                 all?: string,
                 items?: list<MelKpCheck>,
                 move?: string,
-                done?: array{label: string, count?: string, act?: MelAction}
+                done?: array{label: string, count?: string, count_all?: string, act?: MelAction}
             }
         '''
         # The description of a submenu (MelKpItem menu): as MelKpDesc, its items with no submenu of their own.
@@ -401,7 +401,7 @@ parameters:
                 all?: string,
                 items?: list<MelKpCheck>,
                 move?: string,
-                done?: array{label: string, count?: string, act?: MelAction}
+                done?: array{label: string, count?: string, count_all?: string, act?: MelAction}
             }
         '''
         # An item of a menu of the side panel: menu, the description of its submenu, or act, its action.

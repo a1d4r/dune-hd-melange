@@ -92,6 +92,7 @@ sort_menu = Сортировка
 sort_note = Выбрать текущую ещё раз — обратный порядок
 kp_done = Готово
 kp_count = Выбрано: {n} из {m}
+kp_count_all = Выбрано: все
 kp_move = Переместить
 src_kind_torrents = Торренты
 src_kind_own = Свой конфиг

@@ -15,9 +15,11 @@
 //            'menu' - the description of a submenu, it takes the place of the panel - or 'act' - an action run after
 //            the close: plugin_open_folder of a screen, a handle_user_input of the screen);
 //   a check list  title, sub, dim, cur (optional: the id of the item the cursor opens on), all (the label of the line
-//            «all», '' none), items: array('id', 'label', 'count', 'on'), move (the label of the hint «› Переместить»:
-//            RIGHT takes a line; '' none), done (none: no line «Готово»): array('label', 'count' - «Выбрано: {n} из
-//            {m}», 'act' - run after the close, its choice by mel_kp_done).
+//            «all», '' none: checked when no item is - no choice is all of them; ENTER on it unchecks the items),
+//            items: array('id', 'label', 'count', 'on'), move (the label of the hint «› Переместить»: RIGHT takes a
+//            line; '' none), done (none: no line «Готово»): array('label', 'count' - «Выбрано: {n} из {m}»,
+//            'count_all' - optional, of a list with «all»: the count with no item checked, «Выбрано: все», 'act' -
+//            run after the close, its choice by mel_kp_done).
 // A submenu (MelKpSubDesc) is a menu of items with no submenu of their own, or a check list. An item whose id is not a
 // string, or the id of one before, is left out (logged); an empty group too; a menu that is not an array, none
 // (logged); no title: '' (logged).
@@ -183,7 +185,7 @@ function mel_kp_window($f)
 }
 
 // The view of line $l of frame $f in state $st ('', focus, move) for MelKit::panel_row, with the id of its group; $all:
-// are all the lines checked (of the line «all»).
+// is no item checked (the check of the line «all»).
 /**
  * @param MelKpFrame $f
  * @param array{string, string, int, int} $l
@@ -210,7 +212,8 @@ function mel_kp_row($f, $l, $st, $all)
     return $r;
 }
 
-// The view of the line «Готово» of check list $f in state $st for MelKit::panel_done: the count «Выбрано: n из m».
+// The view of the line «Готово» of check list $f in state $st for MelKit::panel_done: the count «Выбрано: n из m»; no
+// item checked and a count_all: that one.
 /**
  * @param MelKpFrame $f
  * @param string $st
@@ -220,6 +223,8 @@ function mel_kp_done_view($f, $st)
 {
     $d = isset($f['desc']['done']) ? $f['desc']['done'] : array('label' => '');
     $n = count(array_filter($f['on']));
+    if (!$n && isset($d['count_all']))
+        return array('label' => (string) $d['label'], 'state' => $st, 'count' => (string) $d['count_all']);
     return array('label' => (string) $d['label'], 'state' => $st, 'count' => str_replace(array('{n}', '{m}'),
         array(strval($n), strval(count($f['on']))), isset($d['count']) ? (string) $d['count'] : ''));
 }
@@ -247,7 +252,7 @@ function mel_kp_view($f, $back, $x)
     $d = $f['desc'];
     $done = null;
     $groups = array();
-    $all = !in_array(false, $f['on'], true);
+    $all = !in_array(true, $f['on'], true);
     foreach (mel_kp_lines($f) as $k => $l)
     {
         if ($l[0] === 'done')
@@ -312,7 +317,7 @@ function mel_kp_index($defs, $out = array())
 function mel_kp_looks($f)
 {
     $out = array();
-    $all = !in_array(false, $f['on'], true);
+    $all = !in_array(true, $f['on'], true);
     foreach (mel_kp_lines($f) as $k => $l)
     {
         if ($l[0] === 'done')
@@ -476,8 +481,9 @@ function mel_kp_input($in)
 // open):
 //   up, down    the cursor a line, to the first and the last (no wrap, as the list); the list scrolls with it; a line
 //               taken moves with it among the lines of the list (the geometry of two lines);
-//   enter       a menu item: its submenu in the place of the panel, else its action after the close; a check line or
-//               «all»: its check (and «all» and the count); «Готово»: as return;
+//   enter       a menu item: its submenu in the place of the panel, else its action after the close; a check line:
+//               its check (and «all» and the count); «all»: the check lines unchecked (it alone checked); «Готово»: as
+//               return;
 //   right       an item with a submenu: as enter; a check line of a list with move: taken (⇅);
 //   left        a submenu: as return;
 //   return      a submenu: back to the panel on the same item; a menu or a check list itself: the close; a check
@@ -555,7 +561,7 @@ function mel_kp_key($k)
         return mel_ovl_close($it['act']);
     }
     elseif ($k === 'enter' && $l[0] === 'all')
-        $f['on'] = array_fill_keys(array_keys($f['on']), in_array(false, $f['on'], true));
+        $f['on'] = array_fill_keys(array_keys($f['on']), false);
     elseif ($k === 'enter' && $l[0] === 'check')
         $f['on'][$l[1]] = !$f['on'][$l[1]];
     elseif ($k === 'right' && $l[0] === 'check' && isset($f['desc']['move']) && $f['desc']['move'] !== '')

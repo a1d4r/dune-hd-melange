@@ -17,9 +17,9 @@ function mel_lpv_flt_id($k)
 }
 
 // The panel "Озвучка" of the online list $st, a check list: "Все озвучки", a line a voice (mel_lpv_voices) with the
-// number of its balancers on the right, those of the filter checked (no filter: none - all are shown, as with all
-// checked), the cursor on the first one checked (none: the first line); "Готово": lp_flt_done (mel_lpv_flt_apply). No
-// voice: null.
+// number of its balancers on the right, those of the filter checked (no filter: none of them - "Все озвучки" alone is,
+// the count "Выбрано: все"), the cursor on the first one checked (none: the first line, "Все озвучки"); "Готово":
+// lp_flt_done (mel_lpv_flt_apply). No voice: null.
 /**
  * @param MelState $st
  * @return MelKpSubDesc|null
@@ -40,7 +40,8 @@ function mel_lpv_flt_panel($st)
     if (!$items)
         return null;
     return array('title' => mel_tr($lang, 'lp_flt_title'), 'dim' => 'dim_strong', 'all' => mel_tr($lang, 'lp_flt_all'),
-        'items' => $items, 'done' => mel_lpv_done($lang, 'lp_flt_done', $st['rid'])) + $cur;
+        'items' => $items, 'done' => array('count_all' => mel_tr($lang, 'kp_count_all')) +
+            mel_lpv_done($lang, 'lp_flt_done', $st['rid'])) + $cur;
 }
 
 // lp_flt_menu (the red key) of the online list $st: the panel "Озвучка" over its screen (mel_lpv_flt_panel), the cursor
