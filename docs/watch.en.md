@@ -63,7 +63,7 @@ You can also open Melange from a card in the Dune **Movies** catalog: home scree
 ## If it didn't work
 
 - "No file list within a minute: the release has few seeders": choose a release with more seeders.
-- "TorrServer is not responding…": open TorrServe on the Dune ([Quick start](start.en.md#first-setup), step 1).
+- "TorrServer is not responding": open TorrServe on the Dune ([Quick start](start.en.md#first-setup), step 1).
 - "AIOStreams found no streams": the movie has no releases ([Troubleshooting](troubleshooting.en.md)).
 
 Next: [Movies and series from your disk](library.en.md) · [Continue Watching and Favorites](favorites.en.md) · [Contents](README.en.md)
