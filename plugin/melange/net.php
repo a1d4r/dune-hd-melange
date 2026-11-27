@@ -426,6 +426,9 @@ function mel_ts_silo($base, $total)
     $r = mel_ts_call("$base/api/system/ping", null, $total);
     if ($r['err'] !== '' || $r['code'] !== 200)
         return false;
+    // The answer of Silo is 15 bytes; a long body is not parsed (megabytes of JSON would end the memory of PHP).
+    if (strlen($r['body']) > 256)
+        return false;
     $j = json_decode($r['body'], true);
     return is_array($j) && isset($j['status']) && $j['status'] === 'ok';
 }

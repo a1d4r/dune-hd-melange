@@ -835,8 +835,14 @@ function mel_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_
             microtime(true) - $t));
         $matrix = $err === '' && $code === 200 && strpos($ver, 'MatriX.') === 0;
         // Answered, and not by a TorrServer MatriX: TorrServe Silo (mel_ts_silo) has its own text, no detail.
-        if (!$matrix && $err === '' && mel_ts_silo($base, 2))
-            return mel_ts_fail($lang, 'ts_err_silo', '', $lazy);
+        if (!$matrix && $err === '')
+        {
+            $t = microtime(true);
+            $silo = mel_ts_silo($base, 2);
+            mel_log(sprintf('ts: %s: %s ping: %s, %.2f s', $tag, $base, $silo ? 'silo' : 'no', microtime(true) - $t));
+            if ($silo)
+                return mel_ts_fail($lang, 'ts_err_silo', '', $lazy);
+        }
         if ($err !== '' || $code !== 200)
             return mel_ts_fail($lang, 'ts_err_down', $err !== '' ? $err : "HTTP $code", $lazy);
         if (!$matrix)
