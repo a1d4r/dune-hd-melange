@@ -186,6 +186,8 @@ parameters:
         MelTracks: 'array{tracks: list<MelTrack>, subs: list<string>}'
         # A file of a torrent in TorrServer, ids from 1 (mel_ts_files, torrserver.php).
         MelTsFile: 'array{id: int, path: string, size: float}'
+        # What a wait of a start through TorrServer shows (mel_ts_wait_view): the fields of a wait window (MelWaitTick).
+        MelTsWaitView: 'array{stage: string, count: string, share: float, foot_l: string, foot_tone: string, foot_r: string}'
         # An entry of the list of TorrServer, the section "На TorrServer" (mel_tsl_entry, ts_list.php).
         MelTsEntry: 'array{hash: string, title: string, raw_title: string, src: string, poster: string, category: string, added: int, size: float, files: list<MelTsFile>|null, lampa: array<mixed>|null}'
         # A tile of the copy of the row "На TorrServer" of the catalog (mel_tsr_tiles_of, ts_row.php): the entry, its video

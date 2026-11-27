@@ -2541,10 +2541,23 @@ function mel_scr_of($in, $control)
     return $scr && !mel_ovl_open_on($scr['owner']) ? $scr : null;
 }
 
+// Message $w a builder of a window of the shell said of it (Mel::$dlg, desc) as the simple dialog of ours
+// (mel_dlg_error_desc): the title - of a key, in the language of the shell as its %tr% gives it -, the text, the
+// button, the tone. The dispatcher (mel_dlg_of) and a tick of a wait of ours that ends by a message
+// (mel_ts_wait_end).
+/**
+ * @param MelDlgSay $w
+ * @return array<string, mixed>
+ */
+function mel_dlg_say($w)
+{
+    return mel_dlg_error_desc($w['ok'], $w['key'] !== '' ? mel_tr(mel_catv_lang(), $w['key']) : $w['title'], $w['text'],
+        null, $w['tone']);
+}
+
 // Reply $a to input $in of control $control: the window of the shell its builder said a message of (Mel::$dlg: this
 // very action, built for this input - a window built and another returned is not it), to an own input of a screen with
-// an overlay (mel_scr_of) - the simple dialog of ours over that screen (mel_dlg_error: the title - of a key, in the
-// language of the shell as its %tr% gives it -, the text, the button, the tone); else $a as it is.
+// an overlay (mel_scr_of) - the simple dialog of ours over that screen (mel_dlg_say); else $a as it is.
 /**
  * @param stdClass $in
  * @param mixed $control
@@ -2559,9 +2572,7 @@ function mel_dlg_of($in, $control, $a)
     $scr = mel_scr_of($in, $control);
     if (!$scr)
         return $a;
-    $w = $m['desc'];
-    $d = mel_dlg_error($scr, $w['ok'], $w['key'] !== '' ? mel_tr(mel_catv_lang(), $w['key']) : $w['title'], $w['text'],
-        null, $w['tone']);
+    $d = mel_dlg_open($scr, mel_dlg_say($m['desc']));
     return $d ? $d : $a;
 }
 

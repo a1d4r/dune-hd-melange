@@ -73,7 +73,8 @@ function mel_tsl_done($what, $d, $why, $detail, $files, $from)
  */
 function mel_tsl_wait_defs($d, $sec, $j)
 {
-    return mel_ts_wait_ctls($d['l'], $d['e']['title'], 0.0, $sec, $j, $d['b'] >= 0, mel_input('ts_cancel'));
+    return mel_ts_wait_ctls($d['l'], $d['e']['title'], mel_ts_wait_view($d['l'], 0.0, $j, $d['b'] >= 0), $sec,
+        mel_input('ts_cancel'));
 }
 
 // The timer of the waiting dialog of run $d started at $t (time()): tsl_tick with the run in its params (the entry by its

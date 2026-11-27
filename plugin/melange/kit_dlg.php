@@ -297,9 +297,28 @@ function mel_dlg_open($scr, $d)
     return $a;
 }
 
-// The simple dialog of an error on our screen (mel_error of a screen of ours): the title $title, the reason $text
+// The description (MelDlgDesc) of the simple dialog of an error on our screen: the title $title, the reason $text
 // ('' none), one button $ok (k_icon_check); it and RETURN close it, then $act (null none). Tone $tone: err - the
 // icon circle-x (r6 D3), warn - triangle-alert (r6 D2); null: err with a reason, warn without.
+/**
+ * @param string $ok
+ * @param string $title
+ * @param string $text
+ * @param MelAction|null $act
+ * @param string|null $tone
+ * @return array<string, mixed>
+ */
+function mel_dlg_error_desc($ok, $title, $text = '', $act = null, $tone = null)
+{
+    if ($tone === null)
+        $tone = $text !== '' ? 'err' : 'warn';
+    return array('icon' => $tone === 'err' ? 'k_icon_circle-x' : 'k_icon_triangle-alert',
+        'tone' => $tone, 'title' => $title, 'text' => $text,
+        'buttons' => array(array('label' => $ok, 'icon' => 'k_icon_check', 'act' => $act)), 'cancel' => $act);
+}
+
+// The simple dialog of an error (mel_dlg_error_desc) open over the screen of record $scr (mel_error of a screen of
+// ours).
 /**
  * @param array<string, mixed> $scr
  * @param string $ok
@@ -311,11 +330,7 @@ function mel_dlg_open($scr, $d)
  */
 function mel_dlg_error($scr, $ok, $title, $text = '', $act = null, $tone = null)
 {
-    if ($tone === null)
-        $tone = $text !== '' ? 'err' : 'warn';
-    return mel_dlg_open($scr, array('icon' => $tone === 'err' ? 'k_icon_circle-x' : 'k_icon_triangle-alert',
-        'tone' => $tone, 'title' => $title, 'text' => $text,
-        'buttons' => array(array('label' => $ok, 'icon' => 'k_icon_check', 'act' => $act)), 'cancel' => $act));
+    return mel_dlg_open($scr, mel_dlg_error_desc($ok, $title, $text, $act, $tone));
 }
 
 // The timer of a wait and its map: the keys (wt_key) and the tick (wt_tick, show_dialog_delay MEL_WAIT_DELAY) of the

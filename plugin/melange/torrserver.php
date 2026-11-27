@@ -1031,29 +1031,55 @@ function mel_ts_speed($bps, $lang)
     return $s === "\xE2\x80\x94" ? $s : mel_gc_rate(max(8.0 * $bps, 1e5), false, $lang);
 }
 
-// The status of a wait of a start through TorrServer by TorrentStatus $j, in words: its status (none: the file list
-// awaited), or with the preload ($buf: the key of its line, '' none) the MB of it of its target (mel_ts_buf_need). The
-// waiting dialog of a start from the list of releases and from the section alike (mel_ts_wait_ctls).
+// The status of TorrentStatus $j in words, as TorrServe says it; none: the file list awaited.
 /**
  * @param array<mixed>|null $j
- * @param string $buf
  * @param string $lang
  * @return string
  */
-function mel_ts_wait_status($j, $buf, $lang)
+function mel_ts_wait_status($j, $lang)
 {
-    if ($buf !== '')
-    {
-        $need = mel_ts_buf_need($j);
-        $got = min(mel_num(mel_str($j, 'preloaded_bytes')), $need);
-        return str_replace(array('{got}', '{need}'), array(strval(intval(floor($got / 1048576))),
-            strval(intval(ceil($need / 1048576)))), mel_tr($lang, $buf));
-    }
     $stat = mel_one_line(mel_str($j, 'stat_string'));
     $keys = mel_ts_stats();
     $low = strtolower($stat);
     return $stat === '' ? mel_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? mel_tr($lang, $keys[$low]) :
         mel_cut($stat, 30));
+}
+
+// What a wait of a start through TorrServer shows by TorrentStatus $j, the fields of a wait window (MelWaitTick,
+// kit_dlg.php) - the window of ours takes them as they are, the dialog of the shell makes its lines of them
+// (mel_ts_wait_ctls): stage, the status in words (mel_ts_wait_status), with the preload ($buf) «Буфер»; count, the MB
+// of the preload of its target (mel_ts_buf_need), '' with none; share of the bar, 0 with no preload; foot_l, the
+// download speed (mel_ts_speed), always: with $buf the bit rate $rate needed, if known (> 0), and foot_tone warn when
+// the speed is known and under it; foot_r, the peers and the connected seeders. The start from the list of releases
+// and from the section "На TorrServer" alike.
+/**
+ * @param string $lang
+ * @param float $rate
+ * @param array<mixed>|null $j
+ * @param bool $buf
+ * @return MelTsWaitView
+ */
+function mel_ts_wait_view($lang, $rate, $j, $buf)
+{
+    $v = array('stage' => mel_ts_wait_status($j, $lang), 'count' => '', 'share' => 0.0);
+    if ($buf)
+    {
+        $need = mel_ts_buf_need($j);
+        $got = min(mel_num(mel_str($j, 'preloaded_bytes')), $need);
+        $v = array('stage' => mel_tr($lang, 'ts_wait_buf'), 'count' => str_replace(array('{got}', '{need}'),
+            array(strval(intval(floor($got / 1048576))), strval(intval(ceil($need / 1048576)))),
+            mel_tr($lang, 'ts_wait_buf_count')), 'share' => max(0.0, $got / $need));
+    }
+    $bps = is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null;
+    $speed = mel_ts_speed($bps, $lang);
+    $need = $buf && $rate > 0;
+    $v['foot_l'] = str_replace(array('{speed}', '{rate}'), array($speed, $need ? mel_gc_rate($rate, false, $lang) : ''),
+        mel_tr($lang, $need ? 'ts_wait_speed_need' : 'ts_wait_speed'));
+    $v['foot_tone'] = $need && $speed !== "\xE2\x80\x94" && 8.0 * $bps < $rate ? 'warn' : '';
+    $v['foot_r'] = str_replace(array('{peers}', '{all}', '{seeds}'), array(mel_ts_int($j, 'active_peers'),
+        mel_ts_int($j, 'total_peers'), mel_ts_int($j, 'connected_seeders')), mel_tr($lang, 'ts_wait_peers'));
+    return $v;
 }
 
 // Controls of the waiting dialog (0.45.0) of row $r of $st (mel_ts_wait_ctls; $lazy: «Отмена» stops the player).
@@ -1068,78 +1094,77 @@ function mel_ts_wait_status($j, $buf, $lang)
  */
 function mel_ts_wait_defs($st, $r, $sec, $j, $lazy = false, $buf = false)
 {
-    return mel_ts_wait_ctls($st['lang'], $r['label'], $r['rate'], $sec, $j, $buf, mel_input($lazy ? 'next_stop' : 'ts_cancel'));
+    return mel_ts_wait_ctls($st['lang'], $r['label'], mel_ts_wait_view($st['lang'], $r['rate'], $j, $buf), $sec,
+        mel_input($lazy ? 'next_stop' : 'ts_cancel'));
 }
 
-// Controls of the waiting dialog: the label $label of what opens; the status in words (none: "waiting for the file
-// list"; $buf, the preload: the MB of its target), seconds $sec, peers, connected seeders of TorrentStatus $j; the
-// download speed (mel_ts_speed), always: the window keeps its height; with $buf the bit rate $rate, if known (> 0);
-// "Cancel" with action $cancel. The start from the list of releases and from the section "На TorrServer" alike.
+// Controls of the waiting dialog of the shell, of the fields $v of the wait (mel_ts_wait_view): the label $label of
+// what opens; the stage with its count and the seconds $sec; the peers; the speed, always: the window keeps its
+// height; "Cancel" with action $cancel. The start from the list of releases and from the section "На TorrServer" alike.
 /**
  * @param string $lang
  * @param string $label
- * @param float $rate
+ * @param MelTsWaitView $v
  * @param int $sec
- * @param array<mixed>|null $j
- * @param bool $buf
  * @param MelAction $cancel
  * @return list<array<string, mixed>>
  */
-function mel_ts_wait_ctls($lang, $label, $rate, $sec, $j, $buf, $cancel)
+function mel_ts_wait_ctls($lang, $label, $v, $sec, $cancel)
 {
-    $status = mel_ts_wait_status($j, $buf ? 'ts_wait_buf' : '', $lang);
     $defs = array();
     foreach (mel_dialog_lines($label) as $l)
         $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l));
-    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
-        str_replace(array('{status}', '{sec}'), array($status, $sec), mel_tr($lang, 'ts_wait_line'))));
-    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{peers}', '{all}', '{seeds}'),
-        array(mel_ts_int($j, 'active_peers'), mel_ts_int($j, 'total_peers'), mel_ts_int($j, 'connected_seeders')),
-        mel_tr($lang, 'ts_wait_peers'))));
-    $need = $buf && $rate > 0;
-    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{speed}', '{rate}'),
-        array(mel_ts_speed(is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null, $lang),
-        $need ? mel_gc_rate($rate, false, $lang) : ''), mel_tr($lang, $need ? 'ts_wait_speed_need' : 'ts_wait_speed'))));
+    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{status}', '{sec}'),
+        array(trim("{$v['stage']} {$v['count']}"), $sec), mel_tr($lang, 'ts_wait_line'))));
+    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $v['foot_r']));
+    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $v['foot_l']));
     $defs[] = mel_ctl('cancel', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => mel_tr($lang, 'ts_cancel'),
         GuiButtonDef::width => 300, GuiButtonDef::push_action => $cancel));
     return $defs;
 }
 
-// Timer of the waiting dialog: "get" of the torrent; its files -> playback, from 0 the preload of the
-// file first (mel_ts_preload), then playback when it is done (mel_ts_buf_done) or the time is out;
-// still none -> the timer again, the text redrawn; gone or too long with no files -> error.
+// The end of a wait by action $a, for its host (MelWaitTick): a message its builder said (Mel::$dlg: mel_ts_fail,
+// mel_error) - dialog, its description for the window of ours, and shell, the same message as the window of the
+// shell; else post - the player, a dialog over the player of a lazy episode, a list.
 /**
- * @param stdClass $in
- * @return MelAction
+ * @param MelAction $a
+ * @return array{post: MelAction}|array{dialog: array<string, mixed>, shell: MelAction}
  */
-function mel_ts_tick($in)
+function mel_ts_wait_end($a)
 {
-    $p = array();
-    foreach (array('rid' => '/^[0-9a-f]{12}$/D', 'i' => '/^[0-9]{1,3}$/D', 'pos' => '/^[0-9]{1,7}$/D',
-        'f' => '/^([0-9a-f]{12})?$/D', 'l' => '/^[012]$/D', 't' => '/^[0-9]{1,12}$/D', 'n' => '/^[0-9]{1,4}$/D',
-        'b' => '/^([0-9]{1,4})?$/D') as $k => $re)
-    {
-        if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
-        {
-            mel_log("ts: tick with a bad $k");
-            return mel_close_and(mel_error('err_list_expired'));
-        }
-        $p[$k] = $in->$k;
-    }
+    $m = Mel::$dlg;
+    if ($m && $m['desc'] && $a === $m['shell'])
+        return array('dialog' => mel_dlg_say($m['desc']), 'shell' => $a);
+    return array('post' => $a);
+}
+
+// One step of the wait of a start through TorrServer, the tick of a wait window (MelWaitTick, kit_dlg.php: the window
+// of ours over the list calls it by name; the dialog of the shell by mel_ts_tick), $sec s after its open. Its data
+// $p, strings as the params of a tick of the shell: rid and i, the row of the list; pos; f, from; l: 1 lazy, 2
+// $miss_list of mel_ts_open; n, the ticks so far; b, the tick of the start of the preload, '' none yet. A "get" of the
+// torrent; its files -> playback, from 0 the preload of the file first (mel_ts_preload), then playback when it is done
+// (mel_ts_buf_done) or the time is out; gone or too long with no files -> the error (mel_ts_wait_end); else the
+// fields of the window (mel_ts_wait_view) and the data with its ticks.
+/**
+ * @param array<string, string> $p
+ * @param int $sec
+ * @return array{post: MelAction}|array{dialog: array<string, mixed>, shell: MelAction}|array{stage: string, count: string, share: float, foot_l: string, foot_tone: string, foot_r: string, data: array<string, string>}
+ */
+function mel_ts_wait_tick($p, $sec)
+{
     $i = intval($p['i']);
     // The list on screen, or the one of a lazy episode (mel_next).
     $st = Mel::$state && Mel::$state['rid'] === $p['rid'] ? Mel::$state : Mel::$tswait;
     if (!$st || $p['rid'] !== $st['rid'] || !isset($st['rows'][$i]) || $st['rows'][$i]['hash'] === '')
     {
         mel_log('ts: tick of a list gone');
-        return mel_close_and(mel_error('err_list_expired'));
+        return mel_ts_wait_end(mel_error('err_list_expired'));
     }
     // The list of the dialog, not always the one on screen (mel_op_of_screen): the pair of its profiles - the record, the
     // links of the next episodes and the markers of its source, not of the main one (spec v2 §1.9).
     mel_op_use($st['prof'], $st['lp_prof']);
     $r = $st['rows'][$i];
     $lang = $st['lang'];
-    $sec = max(0, time() - intval($p['t']));
     $p['n'] = strval(intval($p['n']) + 1);
     list($rg, $j) = mel_ts_get($r['hash']);
     $err = $rg['err'];
@@ -1168,16 +1193,55 @@ function mel_ts_tick($in)
     {
         if ($p['b'] !== '')
             mel_log("ts: -> the player: $play");
-        return mel_close_and(mel_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1', $p['l'] === '2'));
+        return mel_ts_wait_end(mel_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1', $p['l'] === '2'));
     }
     if ($err === '' && $code === 401)
-        return mel_close_and(mel_ts_fail($lang, mel_ts_auth_err(), '', $p['l'] === '1'));
+        return mel_ts_wait_end(mel_ts_fail($lang, mel_ts_auth_err(), '', $p['l'] === '1'));
     // 404: TorrServer has it neither in memory nor in its DB (closed).
     if ($err === '' && $code === 404)
-        return mel_close_and(mel_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));
+        return mel_ts_wait_end(mel_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));
     if ($out)
-        return mel_close_and(mel_ts_fail($lang, 'ts_err_timeout', $err !== '' ? $err : '', $p['l'] === '1'));
-    return mel_ts_wait_again(mel_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1', $p['b'] !== ''), mel_ts_wait_acts($p));
+        return mel_ts_wait_end(mel_ts_fail($lang, 'ts_err_timeout', $err !== '' ? $err : '', $p['l'] === '1'));
+    $v = mel_ts_wait_view($lang, $r['rate'], $j, $p['b'] !== '');
+    $v['data'] = $p;
+    return $v;
+}
+
+// Timer of the waiting dialog of the shell (a start not over the list of releases: a lazy episode over the player,
+// "Continue" of play_action; the row of the section has its own, mel_tsl_tick): the params of the tick checked, one
+// step of the wait (mel_ts_wait_tick) t s after its open, then its reply as the shell takes it - the end: the dialog
+// closed, then the player or the message as its window of the shell; else the timer again with the data of the step,
+// the lines redrawn of its fields.
+/**
+ * @param stdClass $in
+ * @return MelAction
+ */
+function mel_ts_tick($in)
+{
+    $p = array();
+    foreach (array('rid' => '/^[0-9a-f]{12}$/D', 'i' => '/^[0-9]{1,3}$/D', 'pos' => '/^[0-9]{1,7}$/D',
+        'f' => '/^([0-9a-f]{12})?$/D', 'l' => '/^[012]$/D', 't' => '/^[0-9]{1,12}$/D', 'n' => '/^[0-9]{1,4}$/D',
+        'b' => '/^([0-9]{1,4})?$/D') as $k => $re)
+    {
+        if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
+        {
+            mel_log("ts: tick with a bad $k");
+            return mel_close_and(mel_error('err_list_expired'));
+        }
+        $p[$k] = $in->$k;
+    }
+    $t = $p['t'];
+    unset($p['t']);
+    $sec = max(0, time() - intval($t));
+    $r = mel_ts_wait_tick($p, $sec);
+    if (isset($r['post']))
+        return mel_close_and($r['post']);
+    if (isset($r['shell']))
+        return mel_close_and($r['shell']);
+    // The step went on: the list and the row are there.
+    $st = Mel::$state && Mel::$state['rid'] === $p['rid'] ? Mel::$state : Mel::$tswait;
+    return mel_ts_wait_again(mel_ts_wait_ctls($st['lang'], $st['rows'][intval($p['i'])]['label'], $r, $sec,
+        mel_input($p['l'] === '1' ? 'next_stop' : 'ts_cancel')), mel_ts_wait_acts(array_merge($r['data'], array('t' => $t))));
 }
 
 // The row of a start through TorrServer for its lazy episodes: without the name,
