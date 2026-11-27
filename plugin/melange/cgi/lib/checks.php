@@ -640,8 +640,7 @@ function mel_cgi_trm_check($srv)
 // the password nor the sid is there.
 function mel_cgi_syn_log($what, $r)
 {
-    mel_cgi_log("server check: syn $what: " . ($r['err'] !== '' ? $r['err'] : ($r['ok'] ? 'ok' : ($r['code'] ? "error {$r['code']}" :
-        "HTTP {$r['http']}"))));
+    mel_cgi_log("server check: syn $what: " . mel_syn_text($r));
 }
 
 // A reply (mel_syn_req) that is not ok -> array(false, lines): no connection
@@ -649,10 +648,11 @@ function mel_cgi_syn_log($what, $r)
 function mel_cgi_syn_fail($r)
 {
     if ($r['err'] !== '')
-        return array(false, array(mel_cgi_srv_net(preg_match('/^curl ([0-9]+):/', $r['err'], $m) ? intval($m[1]) : -1)));
+        return array(false, array(mel_cgi_srv_net($r['errno'])));
+    // Not mel_syn_text: the error in the language of the page; a success that is not of Download Station by its HTTP code.
     return array(false, array(sprintf(mel_cgi_l('Ответ не похож на Synology Download Station (%s) — проверьте адрес',
-        'The reply does not look like Synology Download Station (%s): check the address'), $r['code'] ?
-        mel_cgi_l('ошибка', 'error') . " {$r['code']}" : "HTTP {$r['http']}")));
+        'The reply does not look like Synology Download Station (%s): check the address'), $r['api_err'] ?
+        mel_cgi_l('ошибка', 'error') . " {$r['api_err']}" : "HTTP {$r['http']}")));
 }
 
 // A Synology Download Station server of mel_server_conf() -> array(ok, lines
@@ -670,20 +670,19 @@ function mel_cgi_syn_check($srv)
         return mel_cgi_syn_fail($r);
     list($r, $sid) = mel_syn_login($srv, $apis, 3, 8);
     mel_cgi_syn_log('login', $r);
-    if ($r['code'] === 400 || $r['code'] === 401)
+    $why = mel_syn_login_why($r);
+    if ($why === 'login')
         return array(false, array($srv['user'] === '' ? mel_cgi_l('Сервер требует вход: укажите логин и пароль',
             'The server requires a login: fill in the login and password') : mel_cgi_l('Неверный логин или пароль',
             'Wrong login or password')));
-    if ($r['code'] === 402)
+    if ($why === 'app')
         return array(false, array(mel_cgi_l('У пользователя нет доступа к Download Station: включите его в DSM (Панель ' .
             'управления → Права приложений)', 'The user has no access to Download Station: allow it in DSM (Control Panel → ' .
             'Application Privileges)')));
-    // The 2-step verification: of the user (403), required for all (406).
-    if ($r['code'] === 403 || $r['code'] === 406)
+    if ($why === 'otp')
         return array(false, array(mel_cgi_l('У пользователя включена двухэтапная проверка: заведите в DSM отдельного ' .
             'пользователя без неё', 'The user has 2-step verification on: create a separate DSM user without it')));
-    // DSM blocks the address after wrong passwords, the right one too.
-    if ($r['code'] === 407)
+    if ($why === 'blocked')
         return array(false, array(mel_cgi_l('Synology заблокировал адрес Дюны после неверных паролей (автоблокировка в DSM)',
             'Synology has blocked the address of the Dune after wrong passwords (auto block in DSM)')));
     if ($sid === '')
@@ -700,9 +699,10 @@ function mel_cgi_syn_check($srv)
     if ($conf['err'] !== '')
         return mel_cgi_syn_fail($conf);
     $lines = array('OK: ' . mel_cgi_l('вход принят', 'logged in') . ' · ' . mel_cgi_l('версия', 'version') . " $v");
-    // Without a default folder of Download Station its tasks wait, a folder typed here or not.
-    if (!isset($conf['data']['default_destination']) || !is_string($conf['data']['default_destination']) ||
-        $conf['data']['default_destination'] === '')
+    // Without a default folder of Download Station its tasks wait, a folder typed here or not. An error of
+    // getconfig tells nothing of the folder: no line.
+    if ($conf['ok'] && (!isset($conf['data']['default_destination']) || !is_string($conf['data']['default_destination']) ||
+        $conf['data']['default_destination'] === ''))
         $lines[] = mel_cgi_l('В Download Station не задана папка по умолчанию — закачки будут ждать',
             'Download Station has no default folder set: downloads will wait');
     return array(true, $lines);

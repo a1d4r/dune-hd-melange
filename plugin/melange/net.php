@@ -126,7 +126,7 @@ if (!function_exists('mel_syn_call'))
      * @param array<string, string>|null $post
      * @param int $connect
      * @param int $total
-     * @return MelTsReply
+     * @return MelSynCall
      */
     function mel_syn_call($url, $post, $connect, $total)
     {
@@ -172,9 +172,10 @@ if (!function_exists('mel_syn_call'))
 
 // A request of mel_syn_call read as the Web API answers (HTTP 200, JSON
 // {"success":true,"data":...} or {"success":false,"error":{"code":N}}) ->
-// array(ok: success, data: its data (array() none), code: its error code (0
-// none), err: the transport error ('' none), http: HTTP code, body). Neither
-// ok, code nor err: not a reply of the Web API (a wrong address).
+// array(ok: success, data: its data (array() none), api_err: its error code
+// (0 none), err: the transport error ('' none), errno: of curl (0 none), http:
+// HTTP code, body). Neither ok, api_err nor err: not a reply of the Web API (a
+// wrong address).
 /**
  * @param string $url
  * @param array<string, string>|null $post
@@ -185,7 +186,8 @@ if (!function_exists('mel_syn_call'))
 function mel_syn_req($url, $post, $connect, $total)
 {
     $r = mel_syn_call($url, $post, $connect, $total);
-    $out = array('ok' => false, 'data' => array(), 'code' => 0, 'err' => $r['err'], 'http' => $r['code'], 'body' => $r['body']);
+    $out = array('ok' => false, 'data' => array(), 'api_err' => 0, 'err' => $r['err'], 'errno' => $r['errno'], 'http' => $r['code'],
+        'body' => $r['body']);
     $j = $r['err'] === '' && $r['code'] === 200 ? json_decode($r['body'], true) : null;
     if (!is_array($j) || !isset($j['success']) || !is_bool($j['success']))
         return $out;
@@ -193,8 +195,27 @@ function mel_syn_req($url, $post, $connect, $total)
     if ($j['success'] && isset($j['data']) && is_array($j['data']))
         $out['data'] = $j['data'];
     if (!$j['success'] && isset($j['error']) && is_array($j['error']) && isset($j['error']['code']) && is_int($j['error']['code']))
-        $out['code'] = $j['error']['code'];
+        $out['api_err'] = $j['error']['code'];
     return $out;
+}
+
+// The reply $r (mel_syn_req, mel_syn_api) in a word, for the log and the
+// detail of an error: ok | the transport error (curl N: ...) | error N (of the
+// API) | HTTP N (not a reply of the Web API) | no api (mel_syn_api sent
+// nothing).
+/**
+ * @param MelSynReply $r
+ * @return string
+ */
+function mel_syn_text($r)
+{
+    if ($r['err'] !== '')
+        return $r['err'];
+    if ($r['ok'])
+        return 'ok';
+    if ($r['api_err'])
+        return "error {$r['api_err']}";
+    return $r['http'] ? "HTTP {$r['http']}" : 'no api';
 }
 
 // The APIs of the Synology $srv (mel_server_conf; its url is the base,
@@ -226,7 +247,8 @@ function mel_syn_query($srv, $connect, $total)
 // Method $method of the API $api (version $version, the fields $args) of
 // the Synology $srv at its path of $apis (mel_syn_query), with the sid of a
 // login ('' none) -> the reply of mel_syn_req; an API not in $apis: no
-// request, a reply with neither ok, code nor err, http 0.
+// request, a reply with neither ok, api_err nor err, http 0 ("no api" of
+// mel_syn_text).
 /**
  * @param MelServer $srv
  * @param MelSynApis $apis
@@ -242,7 +264,7 @@ function mel_syn_query($srv, $connect, $total)
 function mel_syn_api($srv, $apis, $api, $version, $method, $args, $sid, $connect, $total)
 {
     if (!isset($apis[$api]))
-        return array('ok' => false, 'data' => array(), 'code' => 0, 'err' => '', 'http' => 0, 'body' => '');
+        return array('ok' => false, 'data' => array(), 'api_err' => 0, 'err' => '', 'errno' => 0, 'http' => 0, 'body' => '');
     $f = array('api' => $api, 'version' => strval($version), 'method' => $method) + $args;
     if ($sid !== '')
         $f['_sid'] = $sid;
@@ -260,10 +282,8 @@ function mel_syn_auth_version($apis)
 }
 
 // Login of $srv to the session DownloadStation -> array(the reply of
-// mel_syn_api, the sid ('' none)). Its error codes: 400 a wrong login or
-// password, 401 the account is off, 402 no right to Download Station, 403
-// and 406 the 2-step verification, 407 its auto block. No session is kept:
-// mel_syn_logout after the work.
+// mel_syn_api, the sid ('' none)). Its error codes: mel_syn_login_why. No
+// session is kept: mel_syn_logout after the work.
 /**
  * @param MelServer $srv
  * @param MelSynApis $apis
@@ -277,6 +297,21 @@ function mel_syn_login($srv, $apis, $connect, $total)
         'passwd' => $srv['pass'], 'session' => 'DownloadStation', 'format' => 'sid'), '', $connect, $total);
     $sid = $r['ok'] && isset($r['data']['sid']) && is_string($r['data']['sid']) ? $r['data']['sid'] : '';
     return array($r, $sid);
+}
+
+// Why the login of the reply $r (mel_syn_login) was refused, by its error
+// code: 'login' (400 a wrong login or password, 401 the account is off),
+// 'app' (402 no right to Download Station), 'otp' (the 2-step verification:
+// 403 of the user, 406 required for all), 'blocked' (407: DSM blocks the
+// address after wrong passwords, the right one too), '' (none of these).
+/**
+ * @param MelSynReply $r
+ * @return string
+ */
+function mel_syn_login_why($r)
+{
+    $why = array(400 => 'login', 401 => 'login', 402 => 'app', 403 => 'otp', 406 => 'otp', 407 => 'blocked');
+    return isset($why[$r['api_err']]) ? $why[$r['api_err']] : '';
 }
 
 // The end of the session $sid of mel_syn_login.
