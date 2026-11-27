@@ -197,8 +197,9 @@ function mel_lpv_redraw($in)
 // takes them as they are, the dialog of the shell shows its two lines (shell_lines: mel_lpv_search_defs). The replies of
 // the balancers: stage, those asked of those found («Опрошено: 6 из 7»); count, the variants so far («вариантов:
 // 31»); share of the bar, the asked of the found; late, a variant is there (the second button of the window needs
-// one: the owner 27.11.2026). Before them (the ids, the search): stage, the balancers found so far, none yet - that
-// they are answering; no count, the empty bar, late false.
+// one: the owner 27.11.2026). Before them (the ids, the search): stage, «Ищу балансеры»; count, those found so far
+// («найдено: 7»), none yet - no count (the owner 27.11.2026, (29)); the empty bar, late false; the lines of the shell
+// as before - the balancers found, that they are answering.
 /**
  * @param MelLpRun $run
  * @return MelLpSearchView
@@ -220,7 +221,8 @@ function mel_lpv_search_view($run)
     $n = max(0, count($v['sources']) - $rch - $wait);
     $found = mel_lpv_tr($lang, 'lp_search_found', array('n' => $n));
     if ($run['phase'] !== 'replies')
-        return array('stage' => $n > 0 ? $found : mel_tr($lang, 'lp_search_wait'), 'count' => '', 'share' => 0.0,
+        return array('stage' => mel_tr($lang, 'lp_search_look'),
+            'count' => $n > 0 ? mel_lpv_tr($lang, 'lp_search_got', array('n' => $n)) : '', 'share' => 0.0,
             'late' => false, 'shell_lines' => array($found, mel_tr($lang, 'lp_search_wait')));
     $k = max(0, $v['next'] - $rch);
     $stage = mel_lpv_tr($lang, 'lp_search_asked', array('k' => $k, 'n' => $n));
