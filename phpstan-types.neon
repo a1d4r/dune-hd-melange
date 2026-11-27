@@ -33,6 +33,12 @@ parameters:
         MelTsReply: 'array{code: int, body: string, err: string, errno: int}'
         # A reply of the Transmission RPC (mel_trm_call, net.php).
         MelTrmReply: 'array{code: int, body: string, err: string, errno: int, sid: bool}'
+        # A reply of a request to a Synology (mel_syn_call, net.php).
+        MelSynCall: 'array{code: int, body: string, err: string, errno: int}'
+        # A reply of the Web API of Synology (mel_syn_req, net.php).
+        MelSynReply: 'array{ok: bool, data: array<mixed>, api_err: int, err: string, errno: int, http: int, body: string}'
+        # The APIs of a Synology by their name (mel_syn_query, net.php).
+        MelSynApis: 'array<string, array{path: string, max: int}>'
         # A reply of Lampac (mel_lp_get, net.php).
         MelLpReply: 'array{code: int, body: string, err: string, errno: int, hit: bool, loc: string}'
         # The parameters of a title for Lampac (mel_lp_title, lampac.php).

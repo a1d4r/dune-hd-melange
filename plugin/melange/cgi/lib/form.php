@@ -233,22 +233,25 @@ function mel_cgi_link($url, $text)
     return '<a href="' . mel_cgi_h($url) . '" target="_blank" rel="noopener noreferrer">' . mel_cgi_h($text) . '</a>';
 }
 
-// data-qbt / data-tr of $x = array(text for qBittorrent, for Transmission):
-// the script swaps them by the client chosen (of a label: its text, of an
-// input: its placeholder).
+// data-<client> of $x = array(key of mel_server_types() => text): the script
+// swaps them by the client chosen (of a label: its text, of an input: its
+// placeholder).
 function mel_cgi_srv_alt($x)
 {
-    return ' data-qbt="' . mel_cgi_h($x[0]) . '" data-tr="' . mel_cgi_h($x[1]) . '"';
+    $out = '';
+    foreach ($x as $type => $text)
+        $out .= ' data-' . $type . '="' . mel_cgi_h($text) . '"';
+    return $out;
 }
 
-// A plain field of a server block whose label ($label; a string: the same for
-// both) and placeholder ($ph) depend on the client: array(qBittorrent,
-// Transmission), the one of $type shown.
+// A plain field of a server block whose label ($label) and placeholder ($ph)
+// may depend on the client: a string - the same for all, an array(key of
+// mel_server_types() => text) - the one of $type shown.
 function mel_cgi_srv_plain($f, $label, $value, $ph, $type)
 {
-    $i = $type === 'tr' ? 1 : 0;
-    return mel_cgi_plain($f['id'], $f['name'], is_array($label) ? $label[$i] : $label, $value, $ph[$i], $f['max'], '',
-        is_array($label) ? mel_cgi_srv_alt($label) : '', $ph[0] === $ph[1] ? '' : mel_cgi_srv_alt($ph));
+    return mel_cgi_plain($f['id'], $f['name'], is_array($label) ? $label[$type] : $label, $value,
+        is_array($ph) ? $ph[$type] : $ph, $f['max'], '', is_array($label) ? mel_cgi_srv_alt($label) : '',
+        is_array($ph) ? mel_cgi_srv_alt($ph) : '');
 }
 
 // The servers of "Download to server": MEL_SERVERS_MAX blocks s<n>_<field>,
@@ -260,6 +263,7 @@ function mel_cgi_servers($servers)
         'The web UI address; leave the login empty if none is needed.') . '</p><p class="hint wn">' .
         mel_cgi_l('Не проверяйте с неверным паролем подряд — qBittorrent блокирует Дюну.',
         'Do not check with a wrong password repeatedly: qBittorrent bans the Dune.') . '</p>';
+    $labels = mel_cgi_l('Метки через запятую (необязательно)', 'Labels, comma-separated (optional)');
     for ($n = 1; $n <= MEL_SERVERS_MAX; $n++)
     {
         $v = isset($servers[$n - 1]) ? $servers[$n - 1] : array();
@@ -277,16 +281,18 @@ function mel_cgi_servers($servers)
             ($v['name'] !== '' ? ': ' . mel_cgi_h($v['name']) : '') . '</summary>' .
             mel_cgi_select($f['type'], mel_cgi_l('Клиент', 'Client'), mel_cgi_opts($types), $type) .
             mel_cgi_input($f['name'], mel_cgi_l('Название', 'Name'), $v['name'], 'qBittorrent') .
-            mel_cgi_srv_plain($f['url'], mel_cgi_l('Адрес', 'Address'), $v['url'],
-                array('http://192.168.1.10:8080', 'http://192.168.1.10:9091'), $type) .
+            mel_cgi_srv_plain($f['url'], mel_cgi_l('Адрес', 'Address'), $v['url'], array('qbt' => 'http://192.168.1.10:8080',
+                'tr' => 'http://192.168.1.10:9091', 'syn' => 'http://192.168.1.10:5000'), $type) .
             mel_cgi_input($f['user'], mel_cgi_l('Логин', 'Login'), $v['user'], '') .
             mel_cgi_input($f['pass'], mel_cgi_l('Пароль', 'Password'), $v['pass'], '') .
-            mel_cgi_srv_plain($f['category'], array(mel_cgi_l('Категория (необязательно)', 'Category (optional)'),
-                mel_cgi_l('Папка загрузки на сервере (необязательно)', 'Download folder on the server (optional)')),
-                $v['category'], array('', ''), $type) .
-            mel_cgi_srv_plain($f['tags'], array(mel_cgi_l('Теги через запятую (необязательно)', 'Tags, comma-separated (optional)'),
-                mel_cgi_l('Метки через запятую (необязательно)', 'Labels, comma-separated (optional)')), $v['tags'], array('', ''),
-                $type) .
+            mel_cgi_srv_plain($f['category'], array('qbt' => mel_cgi_l('Категория (необязательно)', 'Category (optional)'),
+                'tr' => mel_cgi_l('Папка загрузки на сервере (необязательно)', 'Download folder on the server (optional)'),
+                'syn' => mel_cgi_l('Папка загрузки: общая папка/подпапка', 'Download folder: shared folder/subfolder')),
+                $v['category'], '', $type) .
+            // Download Station has no tags: hidden for it (by the script too, on a change of the client), the value kept.
+            '<div class="srvtags"' . ($type === 'syn' ? ' hidden' : '') . '>' . mel_cgi_srv_plain($f['tags'], array(
+                'qbt' => mel_cgi_l('Теги через запятую (необязательно)', 'Tags, comma-separated (optional)'),
+                'tr' => $labels, 'syn' => $labels), $v['tags'], '', $type) . '</div>' .
             mel_cgi_select($f['cache'], mel_cgi_l('Для кэша', 'For the cache of'), mel_cgi_opts(array_merge(
                 array('' => mel_cgi_l('Не из кэша', 'Not from a cache')), mel_server_caches())), $v['cache']) .
             '<button type="button" class="chk srvchk">' . mel_cgi_l('Проверить', 'Check') .

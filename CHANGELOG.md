@@ -3,6 +3,7 @@
 **English version**
 
 ## 0.70.1
+- **Synology Download Station in "Download to server…".** The **"Client"** list of a server block on the settings page has a third item, "Synology Download Station". The address is `http://NAS:5000`; https with the factory Synology certificate will not work. Instead of the category there is **"Download folder: shared folder/subfolder"** (for example, `video/Torrents`): the folder must already exist, and if the field is empty, Melange uses the default folder of Download Station. There is no labels field. **"Check"** logs in and shows "OK: logged in · version …", or the reason: the user has no access to Download Station, 2-step verification is on, DSM has blocked the address after wrong passwords. If this user already has the release in Download Station, the Dune shows **"Already in <server>"**.
 - **New look for the Lampac online list.** The Lampac online list of balancers and voice-overs now looks like the release list.
 - **Russian subtitles tag.** In the release list it now shows only on releases without a Russian voice-over. If the Russian voice-over is in doubt ("?"), the tag stays.
 - Fixed: some titles in Favorites that you brought over from Dune Favorites lost their poster after you restored the settings with "Load from a file". Melange now takes their poster from the catalog.
@@ -359,6 +360,7 @@ First public release. What it does:
 **Russian version**
 
 ## 0.70.1
+- **Synology Download Station в «Скачать на сервер…».** В списке **«Клиент»** у блока сервера на странице настроек появился третий пункт, «Synology Download Station». Адрес — `http://NAS:5000`; по https с заводским сертификатом Synology не заработает. Вместо категории — **«Папка загрузки: общая папка/подпапка»** (например, `video/Torrents`): папка должна уже существовать, а если поле пустое, Melange берёт папку по умолчанию из Download Station. Поля меток нет. **«Проверить»** входит и показывает «OK: вход принят · версия …» или причину: у пользователя нет доступа к Download Station, включена двухэтапная проверка, DSM заблокировал адрес после неверных паролей. Если раздача у этого пользователя в Download Station уже есть, Дюна покажет **«Уже есть в <сервер>»**.
 - **Новый вид онлайн-списка Lampac.** Онлайн-список балансеров и озвучек Lampac теперь выглядит так же, как список раздач.
 - **Метка русских субтитров.** В списке раздач плашка теперь показывается только у раздач без русской озвучки. Если русская озвучка под вопросом («?»), плашка остаётся.
 - Исправлено: у некоторых тайтлов в «Избранном», перенесённых из «Избранного» Дюны, пропадал постер после того, как настройки восстановили через «Загрузить из файла». Теперь Melange берёт их постер из каталога.
