@@ -104,9 +104,7 @@ function mel_ct_url_ok($url)
  */
 function mel_ct_none($c)
 {
-    $a = mel_error('card_trailer_none', '', false, false);
-    $a[GuiAction::data][PluginShowErrorActionData::title] = mel_tr($c['ui'], 'card_trailer_none');
-    return $a;
+    return mel_error('card_trailer_none', '', false, false, mel_tr($c['ui'], 'card_trailer_none'));
 }
 
 // vod_play of the trailer of card $c at $url (mel_ct_clip).

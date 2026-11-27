@@ -905,7 +905,7 @@ function mel_tv_enter($in)
         return null;
     $a = mel_catv_enter($in);
     // A tile of the file in no copy and not in memory: the file is old.
-    if ($a === mel_error('cat_outdated', '', false, false))
+    if ($a === mel_error_act('cat_outdated'))
         mel_tv_flag('a tile of the file is outdated');
     return $a;
 }

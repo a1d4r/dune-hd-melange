@@ -247,9 +247,12 @@ class Mel
     // The zlib function of MelQrPng (in libphp5 of r24 and r25, not known for
     // older ones): mel_qr_file makes no picture without it. Tests name a missing one.
     public static $zlib = 'gzcompress';
-    // The reply to this input stays a window of the shell (mel_dlg_of): set by the code that builds a window with no
-    // look of ours approved for it; off at the start of every handle_user_input.
-    public static $shell_win = false;
+    // The window of the shell built last for this input and what its builder says of it (mel_error, mel_msg; mel_dialog:
+    // nothing): shell, the action whole; desc, the message it is (MelDlgSay) - over a screen of ours the dialog of ours
+    // is shown in its place (mel_dlg_of) - or null: it stays a window of the shell everywhere. Off at the start of
+    // every handle_user_input.
+    /** @var array{shell: MelAction, desc: MelDlgSay|null}|null */
+    public static $dlg = null;
 }
 
 // --- Log: /tmp/run/melange.log (stdout of php_server).
@@ -267,12 +270,18 @@ function mel_log($msg)
     hd_print('melange: ' . gmdate('H:i:s') . ' ' . mel_mask($msg));
 }
 
-// $stop: also stops the player (a lazy episode; proven on the device).
-// $log false: an action shown later, if ever (not logged now).
-function mel_error($key, $detail = '', $stop = false, $log = true)
+// The window of an error of the shell (plugin_show_error): its title - key $key of translations/ in the language of
+// the shell ("%tr%"), or text $title - and its detail. $stop: also stops the player (a lazy episode; proven on the
+// device). Only the action: nothing logged, nothing said of it to the dispatcher (to compare a reply with).
+/**
+ * @param string $key
+ * @param string $detail
+ * @param bool $stop
+ * @param string|null $title
+ * @return MelAction
+ */
+function mel_error_act($key, $detail = '', $stop = false, $title = null)
 {
-    if ($log)
-        mel_log("error: $key" . ($detail !== '' ? " ($detail)" : ''));
     // All fields, as ActionFactory::show_error of Online movies: the shell
     // fails on a missing field it expects (see the list items).
     return array(
@@ -280,12 +289,36 @@ function mel_error($key, $detail = '', $stop = false, $log = true)
         GuiAction::caption => null,
         GuiAction::data => array(
             PluginShowErrorActionData::fatal => false,
-            PluginShowErrorActionData::title => "%tr%$key",
+            PluginShowErrorActionData::title => $title !== null ? $title : "%tr%$key",
             PluginShowErrorActionData::msg_lines =>
                 $detail !== '' ? mel_dialog_lines($detail) : null,
             PluginShowErrorActionData::stop_playback => $stop,
             PluginShowErrorActionData::retry_delay_ms => 0),
         GuiAction::params => null);
+}
+
+// The error of key $key with detail $detail (mel_error_act; $title: its title a text, not the key). It says what it
+// is (Mel::$dlg): the title, the detail its text, OK - over a screen of ours the dialog of ours in tone $tone (err,
+// warn; null: err with a detail, warn without); one that stops the player ($stop) stays the window of the shell.
+// $log false: an action shown later, if ever (not logged now).
+/**
+ * @param string $key
+ * @param string $detail
+ * @param bool $stop
+ * @param bool $log
+ * @param string|null $title
+ * @param string|null $tone
+ * @return MelAction
+ */
+function mel_error($key, $detail = '', $stop = false, $log = true, $title = null, $tone = null)
+{
+    if ($log)
+        mel_log("error: $key" . ($detail !== '' ? " ($detail)" : ''));
+    $a = mel_error_act($key, $detail, $stop, $title);
+    $lines = $a[GuiAction::data][PluginShowErrorActionData::msg_lines];
+    Mel::$dlg = array('shell' => $a, 'desc' => $stop ? null : array('key' => $title !== null ? '' : $key,
+        'title' => strval($title), 'text' => is_array($lines) ? implode(' ', $lines) : '', 'tone' => $tone, 'ok' => 'OK'));
+    return $a;
 }
 
 // --- Input of play_action.
@@ -2357,7 +2390,8 @@ function mel_stop_and($post)
 }
 
 // Dialog over the stopped player or a screen: text lines and buttons
-// (caption => action, named btn0, btn1, ...).
+// (caption => action, named btn0, btn1, ...). A window of the shell everywhere (Mel::$dlg: no message said of it);
+// the message with OK that is the dialog of ours over a screen of ours: mel_msg.
 function mel_dialog($title, $lines, $buttons)
 {
     $defs = array();
@@ -2367,7 +2401,30 @@ function mel_dialog($title, $lines, $buttons)
     foreach ($buttons as $cap => $act)
         $defs[] = mel_ctl('btn' . $n++, GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => $cap,
             GuiButtonDef::width => 500, GuiButtonDef::push_action => $act));
-    return mel_dialog_act($title, $defs);
+    $a = mel_dialog_act($title, $defs);
+    Mel::$dlg = array('shell' => $a, 'desc' => null);
+    return $a;
+}
+
+// A message that says one thing and only closes: title $title, the paragraphs $parts of its text (the reason, then
+// its detail; '' none) and OK - the dialog of the shell of their lines (mel_dialog_lines of each). It says what it is
+// (Mel::$dlg): over a screen of ours the dialog of ours in tone $tone (err, warn; null: err with a text, warn
+// without); false: none - no look of ours approved for it (a success, a doubt), the window of the shell everywhere.
+/**
+ * @param string $title
+ * @param list<string> $parts
+ * @param string|null|false $tone
+ * @return MelAction
+ */
+function mel_msg($title, $parts = array(), $tone = null)
+{
+    $lines = array();
+    foreach ($parts as $p)
+        $lines = array_merge($lines, mel_dialog_lines($p));
+    $a = mel_dialog($title, $lines, array('OK' => mel_close_and(null)));
+    if ($tone !== false)
+        Mel::$dlg['desc'] = array('key' => '', 'title' => $title, 'text' => implode(' ', $lines), 'tone' => $tone, 'ok' => 'OK');
+    return $a;
 }
 
 // show_dialog of controls $defs; $more: fields of the dialog over the usual
@@ -2473,51 +2530,10 @@ function mel_scr_of($in, $control)
     return $scr && !mel_ovl_open_on($scr['owner']) ? $scr : null;
 }
 
-// Window $a of the shell that says one thing and only closes -> array(its title, its text, the caption of its
-// button), null: another action. One of: plugin_show_error that does not stop the player (mel_error: its title a key
-// of translations/, in the language of the shell as %tr% gives it, or a text; its lines); the dialog of mel_dialog of
-// lines and one button that closes it, nothing else in it (no keys, no timer).
-/**
- * @param mixed $a
- * @return array{string, string, string}|null
- */
-function mel_dlg_simple($a)
-{
-    $h = is_array($a) && isset($a[GuiAction::handler_string_id]) ? $a[GuiAction::handler_string_id] : '';
-    $d = $h !== '' && isset($a[GuiAction::data]) && is_array($a[GuiAction::data]) ? $a[GuiAction::data] : array();
-    if ($h === PLUGIN_SHOW_ERROR_ACTION_ID)
-    {
-        if (!empty($d[PluginShowErrorActionData::stop_playback]) || !isset($d[PluginShowErrorActionData::title]))
-            return null;
-        $t = strval($d[PluginShowErrorActionData::title]);
-        $lines = isset($d[PluginShowErrorActionData::msg_lines]) ? $d[PluginShowErrorActionData::msg_lines] : null;
-        return array(strpos($t, '%tr%') === 0 ? mel_tr(mel_catv_lang(), substr($t, 4)) : $t,
-            is_array($lines) ? implode(' ', $lines) : '', 'OK');
-    }
-    if ($h !== SHOW_DIALOG_ACTION_ID || !isset($d[ShowDialogActionData::defs], $d[ShowDialogActionData::title]))
-        return null;
-    $lines = array();
-    $ok = null;
-    foreach (is_array($d[ShowDialogActionData::defs]) ? $d[ShowDialogActionData::defs] : array() as $c)
-    {
-        // A button, then anything: not this one.
-        if ($ok !== null || !is_array($c) || !isset($c[GuiControlDef::kind], $c[GuiControlDef::specific_def]))
-            return null;
-        $def = $c[GuiControlDef::specific_def];
-        if ($c[GuiControlDef::kind] === GUI_CONTROL_LABEL)
-            $lines[] = isset($def[GuiLabelDef::caption]) ? strval($def[GuiLabelDef::caption]) : '';
-        else
-            $ok = isset($def[GuiButtonDef::caption]) ? strval($def[GuiButtonDef::caption]) : '';
-    }
-    // Only what mel_dialog itself makes of them: a dialog with keys or a timer of its own is not this one.
-    if ($ok === null || $a !== mel_dialog($d[ShowDialogActionData::title], $lines, array($ok => mel_close_and(null))))
-        return null;
-    return array(strval($d[ShowDialogActionData::title]), implode(' ', $lines), $ok);
-}
-
-// Reply $a to input $in of control $control: a window of the shell that only says and closes (mel_dlg_simple), to an
-// own input of a screen with an overlay (mel_scr_of) - the simple dialog of ours over that screen (mel_dlg_error: the
-// title, the text of its lines, its button); else, or Mel::$shell_win, $a as it is.
+// Reply $a to input $in of control $control: the window of the shell its builder said a message of (Mel::$dlg: this
+// very action, built for this input - a window built and another returned is not it), to an own input of a screen with
+// an overlay (mel_scr_of) - the simple dialog of ours over that screen (mel_dlg_error: the title - of a key, in the
+// language of the shell as its %tr% gives it -, the text, the button, the tone); else $a as it is.
 /**
  * @param stdClass $in
  * @param mixed $control
@@ -2526,11 +2542,15 @@ function mel_dlg_simple($a)
  */
 function mel_dlg_of($in, $control, $a)
 {
-    $w = Mel::$shell_win ? null : mel_dlg_simple($a);
-    if (!$w)
+    $m = Mel::$dlg;
+    if ($a === null || !$m || !$m['desc'] || $a !== $m['shell'])
         return $a;
     $scr = mel_scr_of($in, $control);
-    $d = $scr ? mel_dlg_error($scr, $w[2], $w[0], $w[1]) : null;
+    if (!$scr)
+        return $a;
+    $w = $m['desc'];
+    $d = mel_dlg_error($scr, $w['ok'], $w['key'] !== '' ? mel_tr(mel_catv_lang(), $w['key']) : $w['title'], $w['text'],
+        null, $w['tone']);
     return $d ? $d : $a;
 }
 
@@ -2677,7 +2697,7 @@ class MelFw extends DunePluginFw
             else if ($op === PLUGIN_OP_HANDLE_USER_INPUT)
             {
                 $type = PLUGIN_OUT_DATA_GUI_ACTION;
-                Mel::$shell_win = false;
+                Mel::$dlg = null;
                 $data = mel_handle_user_input($in);
                 // An error or a message with OK over a screen of ours: its own dialog (mel_dlg_of).
                 $data = mel_dlg_of($in, isset($in->control_id) ? $in->control_id : null, $data);

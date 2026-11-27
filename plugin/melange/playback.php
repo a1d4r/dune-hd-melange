@@ -1454,9 +1454,7 @@ function mel_relist_dialog($title, $lang, $res)
     $only = mel_errors_only_dialog($lang, $res);
     if ($only)
         return $only;
-    return mel_dialog($title, array_merge(mel_dialog_lines(mel_tr($lang, $res['error'])),
-        mel_dialog_lines($res['detail'])),
-        array('OK' => mel_close_and(null)));
+    return mel_msg($title, array(mel_tr($lang, $res['error']), $res['detail']));
 }
 
 // The list of S$s E$e of the card of live list $st anew (mel_relist, cursor

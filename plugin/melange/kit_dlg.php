@@ -36,9 +36,10 @@
 //   there): a tick that comes after the close (sent before it) gets no reply. Every key of a wait, of use or not, gives
 //   its map and its timer again (a key may stop the timer of the shell; not checked on the device).
 // The keys of both (mel_dlg_press) are those of the error and wait screen of kit_scr.php too.
-// The errors and the messages with one button of our screens come here by the dispatcher, not by their code: the reply
-// that is such a window of the shell to an own input of a screen with an overlay opens mel_dlg_error over it
-// (mel_dlg_of, main.php); what has no look of ours approved keeps the window of the shell (Mel::$shell_win).
+// The errors and the messages with one button of our screens come here by the dispatcher, not by their code: the
+// builder of such a window of the shell says the message it is (mel_error, mel_msg: Mel::$dlg, main.php), and the reply
+// that is this window to an own input of a screen with an overlay opens mel_dlg_error over it (mel_dlg_of); what has no
+// look of ours approved keeps the window of the shell (mel_msg with tone false, mel_dialog).
 // The state, MelOvl::$st: dlg (MelDlg), wt (MelWait) while open.
 
 // The prefixes of the ids of the window (MelKit::dialog, MelKit::wait_box): dlg_win, dlg_b0, wt_stage, wt_bar, …
@@ -291,20 +292,23 @@ function mel_dlg_open($scr, $d)
 }
 
 // The simple dialog of an error on our screen (mel_error of a screen of ours): the title $title, the reason $text
-// ('' none), one button $ok (k_icon_check); it and RETURN close it, then $act (null none). With a reason the icon
-// circle-x in err (r6 D3), without triangle-alert in warn (r6 D2).
+// ('' none), one button $ok (k_icon_check); it and RETURN close it, then $act (null none). Tone $tone: err - the
+// icon circle-x (r6 D3), warn - triangle-alert (r6 D2); null: err with a reason, warn without.
 /**
  * @param array<string, mixed> $scr
  * @param string $ok
  * @param string $title
  * @param string $text
  * @param MelAction|null $act
+ * @param string|null $tone
  * @return MelAction|null
  */
-function mel_dlg_error($scr, $ok, $title, $text = '', $act = null)
+function mel_dlg_error($scr, $ok, $title, $text = '', $act = null, $tone = null)
 {
-    return mel_dlg_open($scr, array('icon' => $text !== '' ? 'k_icon_circle-x' : 'k_icon_triangle-alert',
-        'tone' => $text !== '' ? 'err' : 'warn', 'title' => $title, 'text' => $text,
+    if ($tone === null)
+        $tone = $text !== '' ? 'err' : 'warn';
+    return mel_dlg_open($scr, array('icon' => $tone === 'err' ? 'k_icon_circle-x' : 'k_icon_triangle-alert',
+        'tone' => $tone, 'title' => $title, 'text' => $text,
         'buttons' => array(array('label' => $ok, 'icon' => 'k_icon_check', 'act' => $act)), 'cancel' => $act));
 }
 

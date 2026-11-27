@@ -768,9 +768,10 @@ function mel_ts_map_urls($base, $hash, $files, $map, $s, $e)
 function mel_ts_fail($lang, $key, $detail = '', $lazy = false)
 {
     mel_log("ts: -> dialog: $key" . ($detail !== '' ? " ($detail)" : ''));
-    return mel_dialog(mel_tr($lang, 'ts_failed'), array_merge(mel_dialog_lines(mel_tr($lang, $key)),
-        mel_dialog_lines($detail)), $lazy ? array(mel_tr($lang, 'next_stop') => mel_input('next_stop')) :
-        array('OK' => mel_close_and(null)));
+    if ($lazy)
+        return mel_dialog(mel_tr($lang, 'ts_failed'), array_merge(mel_dialog_lines(mel_tr($lang, $key)),
+            mel_dialog_lines($detail)), array(mel_tr($lang, 'next_stop') => mel_input('next_stop')));
+    return mel_msg(mel_tr($lang, 'ts_failed'), array(mel_tr($lang, $key), $detail));
 }
 
 // "No torrents" and a row of a list opened before it was set: this dialog, nothing
@@ -782,7 +783,7 @@ function mel_ts_fail($lang, $key, $detail = '', $lazy = false)
 function mel_torrents_off($lang)
 {
     mel_log('no torrents: -> dialog');
-    return mel_dialog(mel_tr($lang, 'ts_err_off'), array(), array('OK' => mel_close_and(null)));
+    return mel_msg(mel_tr($lang, 'ts_err_off'));
 }
 
 // 401 of TorrServer: no login set -> it asks for one, else it refused ours.

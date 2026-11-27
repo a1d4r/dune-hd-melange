@@ -665,10 +665,8 @@ function mel_oc_row_changes($c, $l, $old, $new)
  */
 function mel_oc_soon_msg($ep, $lang)
 {
-    $a = mel_error('card_ep_soon');
-    $a[GuiAction::data][PluginShowErrorActionData::title] = $ep['date'] !== '' ?
-        str_replace('{d}', mel_oc_day($ep['date'], $lang, false, false), mel_tr($lang, 'card_ep_soon')) : mel_tr($lang, 'card_ep_soon_nodate');
-    return $a;
+    return mel_error('card_ep_soon', '', false, true, $ep['date'] !== '' ?
+        str_replace('{d}', mel_oc_day($ep['date'], $lang, false, false), mel_tr($lang, 'card_ep_soon')) : mel_tr($lang, 'card_ep_soon_nodate'));
 }
 
 // --- Marks "watched" (update_watched_marks of the shell, uids mel_wh_mark_uid).

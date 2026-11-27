@@ -1402,8 +1402,7 @@ function mel_lpv_refresh($st)
     if ($wait > 0)
     {
         mel_log("lampac: refresh in $wait s");
-        return mel_dialog(mel_lpv_tr($st['lang'], 'lp_refresh_wait', array('n' => $wait)), array(),
-            array('OK' => mel_close_and(null)));
+        return mel_msg(mel_lpv_tr($st['lang'], 'lp_refresh_wait', array('n' => $wait)));
     }
     return mel_lpv_search_open($st, 'replace');
 }
@@ -1440,9 +1439,8 @@ function mel_lpv_pick($in, $st)
         if ($f['why'] === 'no_episode' || $f['why'] === 'no_episodes')
         {
             mel_log("lampac: {$r['path']}: no " . mel_ep_tag($st) . " in the voice ({$f['detail']})");
-            return mel_dialog(mel_lpv_tr($st['lang'], 'lp_no_ep_title', array('se' => "S{$s}E{$e}")),
-                mel_dialog_lines(mel_lpv_no_ep_text($st['lang'], $r['src'], $r['voice'], $s, $e, $f['why'], $f['have'])),
-                array('OK' => mel_close_and(null)));
+            return mel_msg(mel_lpv_tr($st['lang'], 'lp_no_ep_title', array('se' => "S{$s}E{$e}")),
+                array(mel_lpv_no_ep_text($st['lang'], $r['src'], $r['voice'], $s, $e, $f['why'], $f['have'])));
         }
     }
     $a = mel_lpv_ep_play($st['movie'], $st['lang'], $f, $st['s'], $st['e'], 0, $deadline);
@@ -1512,8 +1510,7 @@ function mel_lpv_no_ep_text($lang, $src, $voice, $s, $e, $why, $have)
 function mel_lpv_failed($lang, $r, $why, $detail)
 {
     mel_log("lampac: {$r['path']}: no link to play ($why)");
-    return mel_dialog(mel_lpv_tr($lang, 'lp_failed', array('src' => $r['src'])), mel_dialog_lines(mel_lpv_why($lang, $why,
-        $detail)), array('OK' => mel_close_and(null)));
+    return mel_msg(mel_lpv_tr($lang, 'lp_failed', array('src' => $r['src'])), array(mel_lpv_why($lang, $why, $detail)));
 }
 
 // --- The episodes of the online list: the left and right keys, "Выбрать серию".

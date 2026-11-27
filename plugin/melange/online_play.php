@@ -513,8 +513,8 @@ function mel_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
     if ($mv['series'] && ($s < 1 || $e < 1))
     {
         mel_log("resume: lampac $path$ep, no such episode");
-        return mel_dialog(mel_lpv_tr($lang, 'lp_failed', array('src' => $path !== '' ? ucfirst($path) : 'Lampac')),
-            mel_dialog_lines(mel_lpv_why($lang, 'no_episode', '')), array('OK' => mel_close_and(null)));
+        return mel_msg(mel_lpv_tr($lang, 'lp_failed', array('src' => $path !== '' ? ucfirst($path) : 'Lampac')),
+            array(mel_lpv_why($lang, 'no_episode', '')));
     }
     $base = Mel::$settings['lp'];
     $deadline = mel_lp_now() + MEL_LPV_RESUME_MAX;

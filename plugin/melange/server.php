@@ -363,7 +363,6 @@ function mel_srv_push($in)
     $tag = mel_ep_tag($st) . ", row $i, hash {$row['hash']}, server $k" . ($srv['type'] === 'tr' ? ' (Transmission)' : ($srv['type'] === 'syn' ? ' (Synology)' : '')) .
         ($srv['category'] !== '' ? ", category {$srv['category']}" : '') .
         ($srv['tags'] !== '' && $srv['type'] !== 'syn' ? ", tags {$srv['tags']}" : '');
-    $ok = array('OK' => mel_close_and(null));
     list($mg, $n, $src) = mel_magnet($row);
     mel_log("server: $tag, $n trackers ($src)");
     if ($srv['type'] === 'tr')
@@ -372,22 +371,19 @@ function mel_srv_push($in)
         list($status, $key, $detail) = mel_syn_add($srv, $mg, $row['hash']);
     else
         list($status, $key, $detail) = mel_qbt_add($srv, $mg);
-    // "Added", "there already" and "maybe added" stay windows of the shell: the dialog of ours is that of an error, no
-    // look of a success or of a doubt approved yet.
+    // "Added", "there already" and "maybe added" stay windows of the shell (tone false): the dialog of ours is that of
+    // an error, no look of a success or of a doubt approved yet.
     if ($status === 'dup')
     {
         mel_log('server: there already');
-        Mel::$shell_win = true;
-        return mel_dialog(str_replace('{srv}', $srv['name'], mel_tr($lang, $key)), array(), $ok);
+        return mel_msg(str_replace('{srv}', $srv['name'], mel_tr($lang, $key)), array(), false);
     }
     if ($status !== 'added')
     {
         mel_log("server: not added: $key" . ($detail !== '' ? " ($detail)" : ''));
-        Mel::$shell_win = $status === 'maybe';
-        return mel_dialog(str_replace('{srv}', $srv['name'], mel_tr($lang, $status === 'maybe' ? 'srv_maybe' : 'srv_failed')),
-            array_merge(mel_dialog_lines(mel_tr($lang, $key)), mel_dialog_lines($detail)), $ok);
+        return mel_msg(str_replace('{srv}', $srv['name'], mel_tr($lang, $status === 'maybe' ? 'srv_maybe' : 'srv_failed')),
+            array(mel_tr($lang, $key), $detail), $status === 'maybe' ? false : null);
     }
     mel_log('server: added');
-    Mel::$shell_win = true;
-    return mel_dialog(str_replace('{srv}', $srv['name'], mel_tr($lang, 'srv_added')), array(), $ok);
+    return mel_msg(str_replace('{srv}', $srv['name'], mel_tr($lang, 'srv_added')), array(), false);
 }

@@ -711,9 +711,7 @@ function mel_lib_gone($why, $lang = '', $q = -1, $e = -1, $retry = null)
     if ($e < 1)
         return mel_error($why === 'slow' ? 'lib_slow' : 'lib_gone');
     $k = $why === 'slow' ? 'lib_next_slow' : 'lib_next_no_disk';
-    $a = mel_error($k);
-    $a[GuiAction::data][PluginShowErrorActionData::title] = mel_tr($lang, $k, mel_se($q, $e));
-    return $a;
+    return mel_error($k, '', false, true, mel_tr($lang, $k, mel_se($q, $e)));
 }
 
 // lib_next: a lazy episode of a playlist of the disk (mel_lib_lazy_url, mel_lazy_action) - k the card of the history H
