@@ -822,7 +822,7 @@ function mel_rel_key_ok($t)
 }
 
 // Key $t of a release (MEL_REL_RE) is that of mel_nf_key, of a row with no infoHash: Debrid only, no way through
-// TorrServer; several files of its release may come as rows of one key (mel_row_marked).
+// TorrServer; several files of its release may come as rows of one key (mel_row_takes_bar).
 /**
  * @param string $t
  * @return bool

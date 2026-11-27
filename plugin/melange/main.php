@@ -2187,7 +2187,7 @@ function mel_play_action($in, $hist = null, $src = '')
         $tag = "resume: release {$resume['hash']} mode=" . ($mode !== '' ? $mode : 'none');
         $pick = $resume['next'] ? mel_release_pick($st['rows'], $resume['hash'], $s, $e, mel_cin_n($mv['cin'], $s, $e)) :
             mel_release_pick($st['rows'], $resume['hash'], -1, -1);
-        // A key of a row of no infoHash: several files of its release come as rows of it (mel_row_marked) - the one
+        // A key of a row of no infoHash: several files of its release come as rows of it (mel_row_takes_bar) - the one
         // with the episode, if any.
         if (!$resume['next'] && $e > 0 && mel_rel_nf($resume['hash']))
         {

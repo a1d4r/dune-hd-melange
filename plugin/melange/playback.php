@@ -277,7 +277,7 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
     $linked = $mv['dune_id'] !== '' && $rel !== '' && ($ts || $ready || $r['cached'] === true);
     $seasons = $mv['seasons'];
     $season = $linked && $e > 0 && isset($seasons[$s]) && $e <= $seasons[$s] && $seasons[$s] <= MEL_EPISODES_MAX &&
-        ($ts ? preg_match('/^[0-9a-f]{40}$/D', $r['hash']) : mel_rel_key_ok($rel));
+        mel_rel_key_ok($rel);
     $others = $ts ? $ts['others'] : array();
     $plan = $season ? mel_play_plan($seasons, $s, $others) : array();
     if (count($plan) > MEL_EPISODES_MAX)
@@ -1425,7 +1425,7 @@ function mel_release_row($rows, $hash, $s, $e, $n = 0)
  * @param MelRow $r
  * @return bool
  */
-function mel_row_marked($st, $r)
+function mel_row_takes_bar($st, $r)
 {
     $rel = mel_row_rel($r);
     $s = $st['s'];
