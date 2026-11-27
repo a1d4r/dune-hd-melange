@@ -68,8 +68,7 @@ function mel_kp_kind($f)
  */
 function mel_kp_texts($f)
 {
-    $t = isset($f['desc']['text']) ? $f['desc']['text'] : array();
-    return is_array($t) ? array_values(array_filter($t, 'is_string')) : array();
+    return array_values(array_filter(isset($f['desc']['text']) ? $f['desc']['text'] : array(), 'is_string'));
 }
 
 // The focusable lines of frame $f in their order, each array(kind, key, g, j): kind item (of a menu), all, check (a line
