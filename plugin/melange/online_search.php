@@ -56,7 +56,13 @@ function mel_lpv_search_open($st, $how, $opt = array())
                 $v[$k] = $st['lp'][$k];
         }
     }
-    $run = array('sid' => $sid, 'st' => $st, 'how' => $how, 'back' => !empty($opt['back']),
+    // The address of the Lampac of the list at the open (of its pair, mel_op_use; the pair of the operation as it was):
+    // what mel_lpv_run_live holds the run to, of "Ещё N" too - it has no search of its own.
+    list($rel, $lp) = array(Mel::$settings['prof'], Mel::$settings['lp_prof']);
+    mel_op_use($st['prof'], $st['lp_prof']);
+    $base = Mel::$settings['lp'];
+    mel_op_use($rel, $lp);
+    $run = array('sid' => $sid, 'st' => $st, 'base' => $base, 'how' => $how, 'back' => !empty($opt['back']),
         'path' => isset($opt['path']) ? $opt['path'] : '', 'key' => isset($opt['key']) ? $opt['key'] : '',
         'fail' => isset($opt['fail']) ? $opt['fail'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v,
         'poll' => mel_lp_poll_start(count($v['rows'])), 'more' => $more ? count($v['rows']) : -1);
@@ -441,8 +447,8 @@ function mel_lpv_run_over($run)
     mel_op_use($rel, $lp);
 }
 
-// The Lampac of run $run is the one it searches still: its profile of Lampac there and ready, of the address its search
-// was started at (the page may change both meanwhile). The pair of the operation from now that of the run (mel_op_use:
+// The Lampac of run $run is the one it searches still: its profile of Lampac there and ready, of the address the run
+// was opened at (its 'base', mel_lpv_search_open; the page may change both meanwhile). The pair of the operation from now that of the run (mel_op_use:
 // the Lampac of its list, spec v2 §2.2, not the main one), whatever the answer.
 /**
  * @param MelLpRun $run
@@ -451,7 +457,7 @@ function mel_lpv_run_over($run)
 function mel_lpv_run_live($run)
 {
     list(, $lp) = mel_op_use($run['st']['prof'], $run['st']['lp_prof']);
-    return $lp === $run['st']['lp_prof'] && (!$run['search'] || $run['search']['base'] === Mel::$settings['lp']);
+    return $lp === $run['st']['lp_prof'] && $run['base'] === Mel::$settings['lp'];
 }
 
 // The sources of run $run (mel_lpv_run_over, of the pair of the run) into "Источники…" (mel_lpv_srcs_seen): those of its

@@ -994,7 +994,7 @@ function mel_lpv_card_of($st, $v, $L, $j)
 }
 
 // Children of 'card' of row $i (of the list, not of the screen) of view $v, stacks of the kit as the card of a release
-// (mel_gc_card): beside the poster the balancer (MEL_K_PX_PANEL_TITLE) and "до 2160p"; under it the fields (mel_gc_field):
+// (mel_gc_card): beside the poster the balancer (MEL_K_PX_LIST_LEAD) and "до 2160p"; under it the fields (mel_gc_field):
 // the voice, the quality ("до 2160p", else "источник не сообщает"), the subtitles that do not go to the player, "Через:
 // Lampac из настроек". Of the line of a balancer (its first row $i; $q its best quality, '' none): no voice, no
 // subtitles. The row "Ещё N" and none: no card.
@@ -1015,7 +1015,7 @@ function mel_lpv_card($st, $v, $i, $q = null)
     $lang = mel_gc_lang($st);
     $sx = mel_img($st['movie']['poster']) !== '' ? MEL_GC_PW + MEL_GC_SIDE_GAP : 0;
     $so = array('w' => MEL_GC_CW - $sx);
-    $side = array(MelKit::text($r['src'], MEL_K_PX_PANEL_TITLE, MEL_K_C_TEXT1, $sx, 0, $so));
+    $side = array(MelKit::text($r['src'], MEL_K_PX_LIST_LEAD, MEL_K_C_TEXT1, $sx, 0, $so));
     if ($q !== '')
         $side[] = MelKit::text(mel_lpv_tr($lang, 'lp_side_q', array('q' => $q)), MEL_K_PX_ROW, MEL_K_C_TEXT2, $sx, 0, $so);
     $side = MelKit::stack($side, 'm', 0, 'side');

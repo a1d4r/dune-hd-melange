@@ -51,7 +51,7 @@ define('MEL_K_FACE_LIGHT', 'light');
 define('MEL_K_FACE_CONDENSED', 'condensed');
 
 // Font size of a text role (sizes of the scale and of the guesses; the height of capitals: mel_k_cap()).
-define('MEL_K_PX_PANEL_TITLE', 48);
+define('MEL_K_PX_LIST_LEAD', 48);
 define('MEL_K_PX_PANEL_HEAD', 36);
 define('MEL_K_PX_STATUS_TITLE', 36);
 define('MEL_K_PX_ROW', 30);

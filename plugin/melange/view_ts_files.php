@@ -215,7 +215,7 @@ function mel_tsf_window($s)
         mel_gc_rect(mel_gc_at(1920, 1080, 0, 0), MEL_K_C_SCRIM)), mel_tsf_side($s, $lang));
     $d[] = mel_gc_panel('card', mel_gc_at(1920, 1080, 0, 0), mel_tsf_card($s, $sel, $lang));
     list($head) = mel_tsl_split($s['e']['title']);
-    $t = MelKit::text(MelKit::cut($head, MEL_K_PX_PANEL_TITLE, '', MEL_GC_LW - MEL_GC_PAD), MEL_K_PX_PANEL_TITLE,
+    $t = MelKit::text(MelKit::cut($head, MEL_K_PX_LIST_LEAD, '', MEL_GC_LW - MEL_GC_PAD), MEL_K_PX_LIST_LEAD,
         MEL_K_C_TEXT1, MEL_GC_LX + 4, MEL_GC_TITLE_MID);
     $d = array_merge($d, $t['defs']);
     $in = array(mel_gc_sel($sel));
@@ -261,7 +261,7 @@ function mel_tsf_side($s, $lang)
     $n = count($s['v']);
     $w = MEL_GC_LX - MEL_K_GAP_XS - MEL_TSF_SIDE_X;
     $items = array(
-        MelKit::text(MelKit::cut(mel_size_str($size, $lang), MEL_K_PX_PANEL_TITLE, '', $w), MEL_K_PX_PANEL_TITLE,
+        MelKit::text(MelKit::cut(mel_size_str($size, $lang), MEL_K_PX_LIST_LEAD, '', $w), MEL_K_PX_LIST_LEAD,
             MEL_K_C_TEXT1, MEL_TSF_SIDE_X, 77),
         MelKit::text($n . ' ' . mel_gc_plural($lang, $n, 'tsl_files'), MEL_K_PX_SECONDARY, MEL_K_C_TEXT2, MEL_TSF_SIDE_X, 118),
         MelKit::text(MelKit::wrap(mel_tsl_added($e, $lang, 'tsl_added_lc'), MEL_K_PX_SECONDARY, '', $w, 2), MEL_K_PX_SECONDARY,

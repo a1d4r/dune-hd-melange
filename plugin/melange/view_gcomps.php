@@ -1321,7 +1321,7 @@ function mel_gc_fields($r, $tt, $addon_side, $top, $bottom, $check = '')
 }
 
 // Children of 'card' (left column, at the poster's top left), stacks of the kit. Beside the poster (MEL_K_GAP_M
-// after it; without a poster from the left edge): the size (MEL_K_PX_PANEL_TITLE), the bit rate and the size of a
+// after it; without a poster from the left edge): the size (MEL_K_PX_LIST_LEAD), the bit rate and the size of a
 // season pack (MEL_K_PX_SECONDARY, text 2), the cache status with its icon (MEL_K_PX_ROW, in the colour of the
 // status), the release group and the source (platform of a WEB-DL), labels MEL_K_PX_CAPTION in text 3; at the
 // poster's bottom the add-on when it fits. Under the poster (from the same y without one): the name (up to
@@ -1346,7 +1346,7 @@ function mel_gc_card($st, $sel)
     $side = array();
     $gaps = array();
     if ($r['size'] > 0)
-        $side[] = MelKit::text(mel_size_str($r['size'], $tt['lang']), MEL_K_PX_PANEL_TITLE, MEL_K_C_TEXT1, $sx, 0,
+        $side[] = MelKit::text(mel_size_str($r['size'], $tt['lang']), MEL_K_PX_LIST_LEAD, MEL_K_C_TEXT1, $sx, 0,
             array('w' => $sw));
     foreach (array($r['rate'] > 0 ? mel_gc_rate($r['rate'], $r['rate_approx'], $tt['lang']) : '',
         $r['pack'] > 0 ? $tt['pack'] . ' ' . mel_size_str($r['pack'], $tt['lang']) : '') as $s)
@@ -1428,7 +1428,7 @@ function mel_gc_tier_count($tt, $n)
 }
 
 // Children of 'card' on the line of the group of lines $lv (mel_gc_lv) of list $st, beside the poster as the card of a
-// release (MEL_K_GAP_M apart): "4 раздачи" in the place of the size (MEL_K_PX_PANEL_TITLE, text 1), "не подтверждены"
+// release (MEL_K_GAP_M apart): "4 раздачи" in the place of the size (MEL_K_PX_LIST_LEAD, text 1), "не подтверждены"
 // in that of the status (MEL_K_PX_ROW, text 2), "ENTER — показать" (unfolded: "ENTER — свернуть"; MEL_K_PX_SECONDARY,
 // text 2) - none when ENTER does nothing there (no row of the main list: the group always unfolded). Nothing under the
 // poster.
@@ -1442,7 +1442,7 @@ function mel_gc_group_card($st, $lv)
     $tt = mel_gc_text(mel_gc_lang($st));
     $sx = mel_img($st['movie']['poster']) !== '' ? MEL_GC_PW + MEL_GC_SIDE_GAP : 0;
     $o = array('w' => MEL_GC_CW - $sx);
-    $b = array(MelKit::text(mel_gc_tier_count($tt, $lv['t']), MEL_K_PX_PANEL_TITLE, MEL_K_C_TEXT1, $sx, 0, $o),
+    $b = array(MelKit::text(mel_gc_tier_count($tt, $lv['t']), MEL_K_PX_LIST_LEAD, MEL_K_C_TEXT1, $sx, 0, $o),
         MelKit::text($tt['tier_card'], MEL_K_PX_ROW, MEL_K_C_TEXT2, $sx, 0, $o));
     if ($lv['t'] < $lv['n'])
         $b[] = MelKit::text($lv['o'] ? $tt['tier_hide'] : $tt['tier_show'], MEL_K_PX_SECONDARY, MEL_K_C_TEXT2, $sx, 0,
