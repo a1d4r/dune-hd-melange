@@ -97,8 +97,9 @@ function mel_lpv_search_shell($run)
 // P1_online25) over the screen of record $scr, the list it was started from: «Ищу онлайн», «прошло N с» by the title,
 // the fields of the search now (mel_lpv_search_view: the stage and the variants over the bar; no facts, no line under
 // the bar), «Отмена» (RETURN too); from MEL_LPV_FOUND_S s on and with a variant found (late held by the step)
-// «Показать найденное» before it, in focus. Its tick is the step of the search (mel_lpv_wait_tick) every
-// MEL_LPV_TICK_MS with the run its data; both buttons leave the run to the screen (lp_wt_done, mel_lpv_wait_done).
+// «Показать найденное» after it, the focus still on «Отмена» (the owner 27.11.2026, (32)). Its tick is the step of
+// the search (mel_lpv_wait_tick) every MEL_LPV_TICK_MS with the run its data; both buttons leave the run to the
+// screen (lp_wt_done, mel_lpv_wait_done).
 // Not opened (no record): null.
 /**
  * @param MelOvlScreen $scr
@@ -115,7 +116,7 @@ function mel_lpv_wait_kit($scr, $run)
     return mel_wait_open($scr, array_merge(mel_lpv_search_view($run), array('icon' => 'k_icon_globe',
         'title' => mel_tr($lang, 'lp_search_title'), 'elapsed' => mel_tr($lang, 'ks_wait_elapsed'),
         'tick' => 'mel_lpv_wait_tick', 'data' => $run, 'ms' => MEL_LPV_TICK_MS, 'buttons' => array($cancel),
-        'late' => array('sec' => MEL_LPV_FOUND_S, 'buttons' => array($found, $cancel), 'focus' => 0))));
+        'late' => array('sec' => MEL_LPV_FOUND_S, 'buttons' => array($cancel, $found)))));
 }
 
 // lp_wt_done, a button of the wait window of ours over the list of rid $in->rid (it comes after the close): the run

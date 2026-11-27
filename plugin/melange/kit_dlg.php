@@ -34,7 +34,7 @@
 //   none: the close only), tick (the name of the function), data, ms (the period of its ticks, default
 //   MEL_WAIT_TICK_MS: a tick that is a request itself comes sooner; the time by the title and late are by the clock,
 //   not by the ticks), late: at late['sec'] s (default MEL_WAIT_LATE),
-//   once, its icon, tone, buttons («Показать найденное» before «Отмена») and focus (default: the button of the same id,
+//   once, its icon, tone, buttons («Показать найденное» after «Отмена») and focus (default: the button of the same id,
 //   else the first), its text (only the wait screen of kit_scr.php shows it, in the place of the stage; the window has
 //   no long text: owner 27.11.2026). The foot is there by the description, for the whole wait: foot true, or either
 //   of its facts given at the open - a tick that empties both leaves its line empty, the window keeps its height. A
