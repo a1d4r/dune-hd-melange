@@ -592,7 +592,8 @@ function mel_lpv_close_act($sid)
 // asked in it; the cursor of a new search on the row of the key of the run, else on its balancer,
 // after "Ещё N" on the first new row), its screen opened or the list screen replaced; nothing at all - the window "В
 // <its source> для «…» ничего не нашлось" (mel_lpv_end_msg; the owner 27.11.2026, (31)): the grey mark of a search
-// with nothing, «Опрошено балансеров: N, вариантов нет» (N as the search counted them, mel_lpv_search_view), then
+// with nothing, «Опрошено балансеров: N, вариантов нет» (N as the search counted them, mel_lpv_search_view; none
+// asked: «Вариантов нет», no count), then
 // what Lampac said of its login (accsdb), «Другой источник» of the run (its 'other'; none: no such button) and
 // «Закрыть» (a title with releases, back: those with the yellow line). All the sources found turned off in
 // "Источники…" (not back): the list of no row all the same, with the yellow line of it - MENU there turns them on.
@@ -623,7 +624,8 @@ function mel_lpv_result($run)
                 $said[] = trim($w['detail']);
         }
         $sub = array('title' => $mv['title']);
-        $asked = mel_lpv_tr($lang, 'lp_none_asked', array('n' => max(0, $v['next'] - mel_lpv_rch_n($v))));
+        $n = max(0, $v['next'] - mel_lpv_rch_n($v));
+        $asked = $n > 0 ? mel_lpv_tr($lang, 'lp_none_asked', array('n' => $n)) : mel_lpv_tr($lang, 'lp_none_bare');
         return mel_lpv_end_msg($run, mel_lpv_src_tr($lang, 'lp_none', $st['lp_prof'], $sub),
             mel_lpv_src_tr($lang, 'lp_none', $st['lp_prof'], $sub, MEL_DIALOG_LINE_W),
             array_merge(array($asked), array_values(array_unique($said))), 'k_icon_search-x', '',

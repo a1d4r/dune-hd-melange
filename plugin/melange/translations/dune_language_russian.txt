@@ -418,6 +418,7 @@ lp_show_found = Показать найденное
 lp_close = Закрыть
 lp_none = В {name} для «{title}» ничего не нашлось
 lp_none_asked = Опрошено балансеров: {n}, вариантов нет
+lp_none_bare = Вариантов нет
 lp_other_src = Другой источник
 lp_down_src = {name} не отвечает
 lp_down_check = Проверьте, что сервер включён, и его адрес в настройках Melange
