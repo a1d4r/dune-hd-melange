@@ -14,10 +14,10 @@
 //            lists of items (MelKpItem), an item array('id', 'label', 'icon', 'detail', 'value', 'picked', 'way', and
 //            'menu' - the description of a submenu, it takes the place of the panel - or 'act' - an action run after
 //            the close: plugin_open_folder of a screen, a handle_user_input of the screen);
-//   a check list  title, sub, dim, all (the label of the line «all», '' none), items: array('id', 'label', 'count',
-//            'on'), move (the label of the hint «› Переместить»: RIGHT takes a line; '' none), done (none: no line
-//            «Готово»): array('label', 'count' - «Выбрано: {n} из {m}», 'act' - run after the close, its choice by
-//            mel_kp_done).
+//   a check list  title, sub, dim, cur (optional: the id of the item the cursor opens on), all (the label of the line
+//            «all», '' none), items: array('id', 'label', 'count', 'on'), move (the label of the hint «› Переместить»:
+//            RIGHT takes a line; '' none), done (none: no line «Готово»): array('label', 'count' - «Выбрано: {n} из
+//            {m}», 'act' - run after the close, its choice by mel_kp_done).
 // A submenu (MelKpSubDesc) is a menu of items with no submenu of their own, or a check list. An item whose id is not a
 // string, or the id of one before, is left out (logged); an empty group too; a menu that is not an array, none
 // (logged); no title: '' (logged).
@@ -108,8 +108,8 @@ function mel_kp_sub($it, $title)
 }
 
 // A frame of description $d: its items by id (a menu not a description: none); the cursor on the item of its cur, else
-// on its first picked item (a submenu: the current sort), else on the first line; of a check list the checks and the
-// order of its items.
+// (a menu) on its first picked item (a submenu: the current sort), else on the first line, the list scrolled to it; of
+// a check list the checks and the order of its items.
 /**
  * @param MelKpDesc|MelKpSubDesc $d
  * @return MelKpFrame
@@ -153,12 +153,11 @@ function mel_kp_frame($d)
         elseif ($ids)
             $f['groups'][] = $ids;
     }
-    if ($check)
-        return $f;
     $at = isset($d['cur']) && isset($f['its'][$d['cur']]) ? $d['cur'] : null;
     foreach (mel_kp_lines($f) as $k => $l)
     {
-        if ($at !== null ? $l[1] === $at : !empty($f['its'][$l[1]]['picked']))
+        if ($l[0] !== 'all' && $l[0] !== 'done' &&
+            ($at !== null ? $l[1] === $at : !$check && !empty($f['its'][$l[1]]['picked'])))
         {
             $f['cur'] = $k;
             break;

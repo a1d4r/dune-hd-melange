@@ -1345,6 +1345,8 @@ function mel_lpv_done($lang, $control, $rid)
 function mel_lpv_menu($in, $st)
 {
     list($sel, $top) = mel_lpv_pos_keep($in, $st);
+    // The cursor of "Балансеры" (mel_lpv_srcs_panel) is by that of the list.
+    $st['lp']['gc'] = array($sel, $top);
     $L = mel_lpv_lines($st['lp']);
     list($acts) = mel_lpv_screen($st, $L);
     return mel_kp_open(mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top)), mel_lpv_actions($st, $L));

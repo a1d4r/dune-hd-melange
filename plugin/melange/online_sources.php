@@ -185,7 +185,8 @@ function mel_lpv_srcs_id($p)
 }
 
 // The panel "Балансеры" of the online list $st, a check list: the sources of lampac_sources in their order by their
-// names, those on checked, "Переместить"; "Готово": lp_srcs_done (mel_lpv_srcs_apply). No choice saved: null.
+// names, those on checked, "Переместить", the cursor on the source of the row under the cursor of the list (its gc)
+// when it is on, else on the first line; "Готово": lp_srcs_done (mel_lpv_srcs_apply). No choice saved: null.
 /**
  * @param MelState $st
  * @return MelKpSubDesc|null
@@ -193,13 +194,21 @@ function mel_lpv_srcs_id($p)
 function mel_lpv_srcs_panel($st)
 {
     $lang = $st['lang'];
+    list($sel) = mel_lpv_pos($st['lp'], null);
+    list($i) = mel_lpv_mark(mel_lpv_lines($st['lp']), $sel);
+    $at = isset($st['lp']['rows'][$i]) ? $st['lp']['rows'][$i]['path'] : null;
     $items = array();
+    $cur = array();
     foreach (Mel::$settings['lp_src'] as $c)
+    {
         $items[] = array('id' => mel_lpv_srcs_id($c['path']), 'label' => $c['name'], 'on' => $c['on']);
+        if ($c['on'] && $c['path'] === $at)
+            $cur = array('cur' => mel_lpv_srcs_id($c['path']));
+    }
     if (!$items)
         return null;
     return array('title' => mel_tr($lang, 'lp_srcs_title'), 'dim' => 'dim_strong', 'items' => $items,
-        'move' => mel_tr($lang, 'kp_move'), 'done' => mel_lpv_done($lang, 'lp_srcs_done', $st['rid']));
+        'move' => mel_tr($lang, 'kp_move'), 'done' => mel_lpv_done($lang, 'lp_srcs_done', $st['rid'])) + $cur;
 }
 
 // View $v by choice $choice (lampac_sources after "Балансеры"), no request: its sources and rows of those turned

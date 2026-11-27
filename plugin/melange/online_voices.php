@@ -18,7 +18,8 @@ function mel_lpv_flt_id($k)
 
 // The panel "Озвучка" of the online list $st, a check list: "Все озвучки", a line a voice (mel_lpv_voices) with the
 // number of its balancers on the right, those of the filter checked (no filter: none - all are shown, as with all
-// checked); "Готово": lp_flt_done (mel_lpv_flt_apply). No voice: null.
+// checked), the cursor on the first one checked (none: the first line); "Готово": lp_flt_done (mel_lpv_flt_apply). No
+// voice: null.
 /**
  * @param MelState $st
  * @return MelKpSubDesc|null
@@ -27,13 +28,19 @@ function mel_lpv_flt_panel($st)
 {
     $lang = mel_gc_lang($st);
     $items = array();
+    $cur = array();
     foreach (mel_lpv_voices($st['lp'], $lang) as $x)
-        $items[] = array('id' => mel_lpv_flt_id($x['k']), 'label' => $x['name'], 'count' => strval($x['n']),
-            'on' => isset($st['lp']['flt'][$x['k']]));
+    {
+        $id = mel_lpv_flt_id($x['k']);
+        $on = isset($st['lp']['flt'][$x['k']]);
+        $items[] = array('id' => $id, 'label' => $x['name'], 'count' => strval($x['n']), 'on' => $on);
+        if ($on && !$cur)
+            $cur = array('cur' => $id);
+    }
     if (!$items)
         return null;
     return array('title' => mel_tr($lang, 'lp_flt_title'), 'dim' => 'dim_strong', 'all' => mel_tr($lang, 'lp_flt_all'),
-        'items' => $items, 'done' => mel_lpv_done($lang, 'lp_flt_done', $st['rid']));
+        'items' => $items, 'done' => mel_lpv_done($lang, 'lp_flt_done', $st['rid'])) + $cur;
 }
 
 // lp_flt_menu (the red key) of the online list $st: the panel "Озвучка" over its screen (mel_lpv_flt_panel), the cursor
