@@ -878,7 +878,8 @@ function mel_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_
 // The wait of a start through TorrServer of row $i of list $st as the wait window of ours (mel_wait_open, kit_dlg.php;
 // the owner 27.11.2026) over the screen of record $scr, the list of releases: the title of the dialog of the shell,
 // the facts of the row under it (mel_gc_facts), the fields of TorrentStatus $j now (mel_ts_wait_view: the bar and the
-// line under it from the first second), «прошло N с», one button «Отмена» (RETURN too: gc_ts_cancel) - no late look.
+// line under it from the first second), «прошло N с», one button «Отмена» (RETURN too) that only closes - the torrent
+// stays in TorrServer as it is, what «Отмена» of the window of the shell leaves (ts_cancel) -, no late look.
 // Its tick is the step of the wait (mel_ts_wait_tick) with data $p, the params of a tick of the shell but its t.
 // Not opened (no record): null.
 /**
@@ -898,7 +899,7 @@ function mel_ts_wait_kit($scr, $st, $i, $p, $j)
         'facts' => mel_gc_facts($st, $i), 'foot' => true, 'elapsed' => mel_tr($lang, 'ks_wait_elapsed'),
         'tick' => 'mel_ts_wait_tick', 'data' => $p,
         'buttons' => array(array('id' => 'cancel', 'label' => mel_tr($lang, 'ts_cancel'), 'icon' => 'k_icon_x',
-            'cancel' => true, 'act' => mel_gc_act('gc_ts_cancel', $st['rid']))))));
+            'cancel' => true, 'log' => 'ts: waiting cancelled')))));
 }
 
 // The preload of the file of row $i of $st among $files (mel_ts_file), a start from 0, $j the
@@ -1406,19 +1407,4 @@ function mel_ts_menu($in)
     }
     return mel_ts_open($st, $i, 0, $st['rid'], false, false, false,
         mel_gc_ts_scr($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null));
-}
-
-// gc_ts_cancel, «Отмена» (RETURN too) of the wait window of ours over the list of rid: the window is closed and its
-// ticks with it (kit_dlg.php), the torrent stays in TorrServer as it is - what «Отмена» of the window of the shell
-// leaves (ts_cancel); the button the window kept for the screen taken (mel_wt_done): nothing waits.
-/**
- * @param stdClass $in
- * @return null
- */
-function mel_ts_wait_cancel($in)
-{
-    mel_log('ts: waiting cancelled');
-    if (isset($in->rid) && is_string($in->rid) && $in->rid !== '')
-        mel_wt_done($in->rid);
-    return null;
 }

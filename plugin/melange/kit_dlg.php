@@ -38,9 +38,10 @@
 //   no long text: owner 27.11.2026). The foot is there by the description, for the whole wait: foot true, or either
 //   of its facts given at the open - a tick that empties both leaves its line empty, the window keeps its height. A
 //   button (ENTER, or RETURN on cancel) closes the window, then runs its act (the screen stops its work there): a tick
-//   that comes after the close (sent before it) gets no reply. The button and the data of the wait as its last tick
-//   left it are kept for the screen (wt_done: mel_wt_done($owner), given once - «Показать найденное» shows what the
-//   ticks found); not taken, the record waits as one with kp_done does (mel_ovl_park). Every key of a wait, of use or not, gives
+//   that comes after the close (sent before it) gets no reply. Of a button with an act, the button and the data of the
+//   wait as its last tick left it are kept for the screen (wt_done: mel_wt_done($owner), given once - «Показать
+//   найденное» shows what the ticks found); not taken, the record waits as one with kp_done does (mel_ovl_park). A
+//   button with no act only closes and leaves nothing (log: its line for the log then). Every key of a wait, of use or not, gives
 //   its map and its timer again (a key may stop the timer of the shell; not checked on the device).
 // The keys of both (mel_dlg_press) are those of the error and wait screen of kit_scr.php too.
 // The errors and the messages with one button of our screens come here by the dispatcher, not by their code: the
@@ -60,7 +61,7 @@ define('MEL_WAIT_DELAY', 60000);
 define('MEL_WAIT_LATE', 25);
 
 // The buttons of description $list ($what: for the log): those with a label, 3 at most, each with id ('b<n>' none),
-// label, icon, act (null none), cancel.
+// label, icon, act (null none), cancel, log (the line of the log when it closes a wait, '' none).
 /**
  * @param mixed $list
  * @param string $what
@@ -83,7 +84,8 @@ function mel_dlg_buttons($list, $what)
         }
         $out[] = array('id' => isset($b['id']) && is_string($b['id']) ? $b['id'] : "b$i", 'label' => $b['label'],
             'icon' => isset($b['icon']) && is_string($b['icon']) ? $b['icon'] : '',
-            'act' => isset($b['act']) && is_array($b['act']) ? $b['act'] : null, 'cancel' => !empty($b['cancel']));
+            'act' => isset($b['act']) && is_array($b['act']) ? $b['act'] : null, 'cancel' => !empty($b['cancel']),
+            'log' => isset($b['log']) && is_string($b['log']) ? $b['log'] : '');
     }
     return $out;
 }
@@ -540,8 +542,8 @@ function mel_dlg_now($kind)
 
 // Key $k of open dialog or wait $kind (dlg, wt) -> the reply, null for none (mel_dlg_press): the focus on another
 // button, the children of the two; the end by a button (ENTER, RETURN on the cancel button of a wait): the close, then
-// its act - of a wait the button and its data kept for the screen (wt_done, mel_wt_done); by RETURN: the close, then
-// cancel. A key of a wait that goes on (none of use too): its map and its timer
+// its act - of a wait the button and its data kept for the screen that acts (wt_done, mel_wt_done; no act: nothing
+// kept, the line of the button logged); by RETURN: the close, then cancel. A key of a wait that goes on (none of use too): its map and its timer
 // again (mel_wait_again).
 /**
  * @param string $kind
@@ -576,13 +578,15 @@ function mel_dlg_key($kind, $k)
     mel_log('kit ' . ($wait ? 'wait' : 'dialog') . ": $k" . ($b !== null ? " on {$b['id']}" : '') . ', closed');
     if ($b === null)
         return mel_ovl_close($s['cancel']);
-    return mel_ovl_close($b['act'], $wait ? array('wt_done' => array('id' => $b['id'], 'data' => $st['wt']['data'])) :
-        array());
+    if ($wait && $b['log'] !== '')
+        mel_log($b['log']);
+    return mel_ovl_close($b['act'], $wait && $b['act'] !== null ? array('wt_done' => array('id' => $b['id'],
+        'data' => $st['wt']['data'])) : array());
 }
 
 // The button that closed the wait last on the screen of owner $owner and the data of the wait as its last tick left it
 // (MelWaitDone: id, data); the state of the owner in hand from now (as mel_kp_done). Given once. None (another overlay
-// of this screen since, the wait ended by its tick or by RETURN with no cancel button): null.
+// of this screen since, the wait ended by its tick, by a button with no act or by RETURN with no cancel button): null.
 /**
  * @param string $owner
  * @return MelWaitDone|null

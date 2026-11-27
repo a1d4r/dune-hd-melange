@@ -360,7 +360,7 @@ parameters:
         MelLibAuto: 'array{copies: list<MelLibCopy>, s: int, e: int}'
         # A button of the own dialog or wait (kit_dlg.php, mel_dlg_buttons): its id, label, icon, the action after the
         # close (null none), RETURN presses it (cancel, of a wait).
-        MelDlgButton: 'array{id: string, label: string, icon: string, act: MelAction|null, cancel: bool}'
+        MelDlgButton: 'array{id: string, label: string, icon: string, act: MelAction|null, cancel: bool, log: string}'
         # What the builder of a window of the shell says of it (Mel::$dlg, main.php: mel_error, mel_msg) - a message with
         # one button that closes it: key, the key of translations/ of its title ('' none: title, a text); text, its text
         # ('' none); tone of the dialog of ours (err, warn; null: by the text, mel_dlg_error); ok, the label of the button.
