@@ -675,7 +675,8 @@ function mel_gc_plural($lang, $n, $key)
 // Languages of row $r (variant B, 19.11.2026): its confirmed ones (mel_row_voice_langs 'ok') as up to
 // MEL_GC_LANGS_MAX flags of the skin, a code without a flag as text (MEL_K_PX_CAPTION), the rest as "+N"; one "?"
 // (k_lang_q, in the slot of a flag) for all the guessed ones ('q'); the plate of the subtitles mark
-// (mel_row_subs_mark, k_badge_subs-*) MEL_GC_SUBS_GAP after them. Without a language confirmed or guessed the
+// (mel_row_subs_mark, k_badge_subs-*) MEL_GC_SUBS_GAP after them, none when the language of the mark is among the
+// confirmed ones (subtitles matter without the voice; the card and INFO keep them, mel_row_subs). Without a language confirmed or guessed the
 // senior service code of 'langs' (mel_gc_service_word) as a small plate in place of "?" (k_lang_multi, ...; the
 // owner 20.11.2026, variant B). With a "+N" (more than MEL_GC_LANGS_MAX, or folded by $width) no "?" (the owner
 // 20.11.2026; the card keeps "RU?"). What does not fit $width: the flags go into the "+N" first, the plate stays.
@@ -699,7 +700,9 @@ function mel_gc_lang_items($r, $width)
         $p = MelKit::pic($name);
         $end[] = array('q', $name, $p['w']);
     }
-    $m = strtolower(mel_row_subs_mark($r));
+    $m = mel_row_subs_mark($r);
+    // No mark beside the confirmed voice of its language (the owner 27.11.2026); a guessed one ("?") keeps it.
+    $m = in_array($m, $vl['ok'], true) ? '' : strtolower($m);
     // A plate b2 (k_badge_subs-*); a mark of no picture: none.
     $w = $m !== '' ? MelKit::badges_w(array("subs-$m")) : 0;
     if ($w > 0)
