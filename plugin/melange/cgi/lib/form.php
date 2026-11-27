@@ -261,8 +261,8 @@ function mel_cgi_servers($servers)
     // One short line each: the rest is in the README.
     $out = '<p class="hint">' . mel_cgi_l('Адрес веб-интерфейса; логин пустой — без входа.',
         'The web UI address; leave the login empty if none is needed.') . '</p><p class="hint wn">' .
-        mel_cgi_l('Не проверяйте с неверным паролем подряд — qBittorrent блокирует Дюну.',
-        'Do not check with a wrong password repeatedly: qBittorrent bans the Dune.') . '</p>';
+        mel_cgi_l('Не проверяйте с неверным паролем подряд: qBittorrent и Synology блокируют Дюну.',
+        'Do not retry with a wrong password: qBittorrent and Synology ban the Dune.') . '</p>';
     $labels = mel_cgi_l('Метки через запятую (необязательно)', 'Labels, comma-separated (optional)');
     for ($n = 1; $n <= MEL_SERVERS_MAX; $n++)
     {

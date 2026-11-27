@@ -6,7 +6,7 @@ You need: a torrent client with its web UI turned on.
 
 1. On the settings page ([Settings page on a phone](phone-page.en.md)), open "Download to your server". Choose the client, enter a name, the web UI address (`http://host:port`; Transmission usually uses port 9091), the login and the password. Press "Check": a green line "OK: logged in · version …" should appear.
 
-   For Synology Download Station the address is `http://NAS:5000`; https with the factory Synology certificate will not work. In "Download folder: shared folder/subfolder" you can enter a folder that already exists on the NAS, for example `video/Torrents`. If you leave the field empty, downloads go to the default folder of Download Station.
+   For Synology Download Station the address is `http://NAS:5000`. In "Download folder: shared folder/subfolder" you can enter a folder that already exists on the NAS, for example `video/Torrents`. If you leave the field empty, downloads go to the default folder of Download Station.
 
    <img src="../screenshots/download-server.jpg" alt="Download to your server: Server 1 qBittorrent, address http://192.168.1.10:8080, a green line at the bottom: OK: logged in · version v5.0.4" width="300">
 
@@ -32,6 +32,7 @@ You may not need a separate client. The built-in torrent client of Keenetic rout
 
 - "Check" shows a red line: see [Troubleshooting](troubleshooting.en.md).
 - A download was added to Download Station but stays waiting: set the default folder for that user in Download Station ([Troubleshooting](troubleshooting.en.md)).
+- Synology Download Station does not connect at an `https://…` address with the factory certificate: enter `http://NAS:5000`.
 - The POP UP menu has no "Download to server…": not every release has it, only those where the source sent a torrent. With "No torrents" it is not there at all ([Advanced](advanced-options.en.md)).
 
 Next: [Appearance](appearance.en.md) · [Contents](README.en.md)
