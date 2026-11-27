@@ -20,9 +20,9 @@
 
 4. Выберите сервер. Появится «Добавлено в <название>».
 
-   <img src="../screenshots/download-server-pick.jpg" alt="Панель «Скачать на сервер» со списком серверов: qBittorrent, rdt-client TB, rdt-client RD, Transmission MacOS; фокус на «rdt-client RD»" width="100%">
+   <img src="../screenshots/download-server-pick.jpg" alt="Панель «Скачать на сервер» со списком серверов: qBittorrent, rdt-client TB, rdt-client RD, Transmission MacOS; фокус на «qBittorrent»" width="100%">
 
-   <img src="../screenshots/download-server-added.jpg" alt="Сообщение «Добавлено в rdt-client TB» с кнопкой OK" width="100%">
+   <img src="../screenshots/download-server-added.jpg" alt="Сообщение «Добавлено в qBittorrent» с кнопкой OK" width="100%">
 
 Серверов несколько — в «Для кэша» выберите, какой брать для раздач из кэша Debrid.
 

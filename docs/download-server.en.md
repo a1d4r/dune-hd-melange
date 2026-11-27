@@ -20,9 +20,9 @@ You need: a torrent client with its web UI turned on.
 
 4. Choose the server. You will see "Added to <name>".
 
-   <img src="../screenshots/download-server-pick.jpg" alt="The Download to server panel with the list of servers: qBittorrent, rdt-client TB, rdt-client RD, Transmission MacOS; focus on rdt-client RD" width="100%">
+   <img src="../screenshots/download-server-pick.jpg" alt="The Download to server panel with the list of servers: qBittorrent, rdt-client TB, rdt-client RD, Transmission MacOS; focus on qBittorrent" width="100%">
 
-   <img src="../screenshots/download-server-added.jpg" alt="Message Added to rdt-client TB with an OK button" width="100%">
+   <img src="../screenshots/download-server-added.jpg" alt="Message Added to qBittorrent with an OK button" width="100%">
 
 If you have several servers, choose in "For the cache of" which one to use for releases from the Debrid cache.
 
