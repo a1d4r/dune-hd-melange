@@ -1961,8 +1961,8 @@ class MelKit
     // what does not fit whole is of the next page. The last page is full: it ends with the last text. More than a
     // page: the scroll bar (bar scroll, as that of the list, MEL_K_PANEL_TEXT_H high) with its thumb at the page.
     // -> it, the group {$p}_text (the panel wide, MEL_K_PANEL_TEXT_H high whatever the page: a key changes the page by
-    // its children; its top the top of the capitals of the first text); top, the first text shown; up, down: the first
-    // text of the page before and after (top itself: none).
+    // its children; its top the top of the capitals of the first text, its bottom of a single page the last baseline);
+    // top, the first text shown; up, down: the first text of the page before and after (top itself: none).
     /**
      * @param string $p
      * @param list<string> $texts
@@ -1995,7 +1995,11 @@ class MelKit
         if ($max > 0)
             $parts[] = self::bar('scroll', $W - MEL_K_GAP_XS - MEL_K_PANEL_SCROLL_W, 0, MEL_K_PANEL_SCROLL_W, $H,
                 $at[$top] / $at[$max], array('part' => ($at[$end] - $at[$top]) / $at[$n], 'id' => "{$p}_thumb"));
-        return array('it' => self::group("{$p}_text", self::join('panel_text', $parts)), 'top' => $top, 'up' => $top > 0 ? min($up, $top - 1) : 0,
+        $it = self::group("{$p}_text", self::join('panel_text', $parts));
+        // Its visible bottom: that of the last text of a single page (no bar down to the end of the page).
+        if (!$max && $n)
+            $it['bottom'] = $it['top'] + $at[$n] - MEL_K_GAP_M;
+        return array('it' => $it, 'top' => $top, 'up' => $top > 0 ? min($up, $top - 1) : 0,
             'down' => min($end, $max));
     }
 
