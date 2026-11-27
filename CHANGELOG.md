@@ -4,6 +4,7 @@
 
 ## 0.70.1
 - **New look for the Lampac online list.** The Lampac online list of balancers and voice-overs now looks like the release list.
+- **Russian subtitles tag.** In the release list it now shows only on releases without a Russian voice-over. If the Russian voice-over is in doubt ("?"), the tag stays.
 - Fixed: some titles in Favorites that you brought over from Dune Favorites lost their poster after you restored the settings with "Load from a file". Melange now takes their poster from the catalog.
 - Fixed: for an episode with two copies on the disk, Melange sometimes showed only one, and you couldn't pick the other. Now the other copy is in **MENU** → "Copy on disk…", after the rest. **OK** plays the same copy as before, and Melange remembers the copy you pick in the window.
 - Fixed: if you opened the Melange card of the same movie or series a second time on top of the first (for example, **MENU** → "Dune card" → **Play...** → "Melange") and then went back, the first card showed the place of the second one, such as its season and episode. Now each card stays where you left it.
@@ -359,6 +360,7 @@ First public release. What it does:
 
 ## 0.70.1
 - **Новый вид онлайн-списка Lampac.** Онлайн-список балансеров и озвучек Lampac теперь выглядит так же, как список раздач.
+- **Метка русских субтитров.** В списке раздач плашка теперь показывается только у раздач без русской озвучки. Если русская озвучка под вопросом («?»), плашка остаётся.
 - Исправлено: у некоторых тайтлов в «Избранном», перенесённых из «Избранного» Дюны, пропадал постер после того, как настройки восстановили через «Загрузить из файла». Теперь Melange берёт их постер из каталога.
 - Исправлено: у серии с двумя копиями на диске Melange иногда показывал только одну, и выбрать вторую было нельзя. Теперь вторая копия есть в **MENU** → «Копия на диске…», после остальных. **OK** включает ту же копию, что и раньше, а выбранную в окне копию Melange запоминает.
 - Исправлено: если карточку Melange того же фильма или сериала открыть второй раз поверх первой (например, **MENU** → «Карточка Дюны» → «Смотреть…» → «Melange») и вернуться, первая показывала место второй, например её сезон и серию. Теперь каждая карточка остаётся там, где вы её оставили.
