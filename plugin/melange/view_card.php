@@ -2119,6 +2119,18 @@ function mel_oc_scr_lost($key, $raw)
         'sel' => is_string($raw) ? $raw : null);
 }
 
+// The controls of the own inputs of the screen of the own card (mel_oc_scr_in): the keys of its map, the actions of
+// the items of its panel and of the window of the copies, the trailer ENTER asks for. Each is one the screen sends (as
+// mel_gc_own).
+/**
+ * @return list<string>
+ */
+function mel_oc_own()
+{
+    return array('card_move', 'card_enter', 'card_menu', 'card_trailer', 'card_src', 'card_mark', 'card_mark_movie',
+        'card_lib_copies', 'card_lib_copy');
+}
+
 // The record of the screen of the own card whose own input $in of control $control is: a key of its map, the action
 // of an item of its panel or of the window of the copies (after the close), the trailer ENTER asks for (mel_ct_enter)
 // - the reply to it is shown over the card itself (mel_scr_of, main.php). null: a bad key, or an input not of the
@@ -2131,10 +2143,8 @@ function mel_oc_scr_lost($key, $raw)
  */
 function mel_oc_scr_in($in, $control)
 {
-    static $own = array('card_move', 'card_enter', 'card_menu', 'card_trailer', 'card_src', 'card_mark', 'card_mark_movie',
-        'card_lib_copies', 'card_lib_copy');
     $key = mel_catv_in($in, 'c');
-    if (!in_array($control, $own, true) || !mel_oc_key_ok($key))
+    if (!in_array($control, mel_oc_own(), true) || !mel_oc_key_ok($key))
         return null;
     if (!isset(MelOc::$cards[$key]))
         return mel_oc_scr_lost($key, isset($in->parent_sel_state) ? $in->parent_sel_state : null);

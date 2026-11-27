@@ -1611,6 +1611,20 @@ function mel_gc_scr_gone($rid, $control, $raw)
         is_string($raw) ? $raw : null);
 }
 
+// The controls of the own inputs of the screen of a list (mel_gc_scr_in): the keys of its map, the actions of the
+// items of its panels and of «Готово» of their check lists - of the list of releases (gc_) and of the online list
+// (lp_). Each is one the screen sends: a control here that no map, no panel and no chain of them has would be a name
+// gone, its reply still thought shown over the list.
+/**
+ * @return list<string>
+ */
+function mel_gc_own()
+{
+    return array('gc_move', 'gc_pick', 'gc_info', 'gc_menu', 'gc_flip', 'gc_sort', 'gc_refresh', 'gc_main', 'gc_src',
+        'gc_choose', 'gc_dl', 'gc_push', 'gc_ts', 'lp_move', 'lp_pick', 'lp_menu', 'lp_flt_menu', 'lp_flt_done', 'lp_fold',
+        'lp_qsort', 'lp_flip', 'lp_choose', 'lp_refresh', 'lp_srcs_done');
+}
+
 // The record of the screen (mel_gc_scr) of the list of releases or the online list whose own input $in of control
 // $control is: a key of its map or the action of an item of its panel (it comes after the close) - the reply to it is
 // shown over the list itself (mel_scr_of, main.php). null: no rid, or an input not of the screen - of a window of the
@@ -1624,11 +1638,8 @@ function mel_gc_scr_gone($rid, $control, $raw)
  */
 function mel_gc_scr_in($in, $control)
 {
-    static $own = array('gc_move', 'gc_pick', 'gc_info', 'gc_menu', 'gc_flip', 'gc_sort', 'gc_refresh', 'gc_main', 'gc_src',
-        'gc_choose', 'gc_dl', 'gc_push', 'gc_ts', 'lp_move', 'lp_pick', 'lp_menu', 'lp_flt_menu', 'lp_flt_done', 'lp_fold',
-        'lp_qsort', 'lp_flip', 'lp_choose', 'lp_refresh', 'lp_srcs_done');
     $rid = isset($in->rid) && is_string($in->rid) ? $in->rid : '';
-    if ($rid === '' || !in_array($control, $own, true))
+    if ($rid === '' || !in_array($control, mel_gc_own(), true))
         return null;
     $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;
     $st = Mel::$state;
