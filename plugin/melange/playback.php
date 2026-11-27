@@ -214,7 +214,7 @@ function mel_play_plan($seasons, $s, $others)
 // gives [NN%] on the button, mdb_info the "Continue watching" row,
 // recent_plugin/recent_action_params bring "Continue" back to play_action
 // with wh_release and wh_mode in supplier_info. Without a dune id or a key of the release
-// (mel_row_rel: the infoHash, else the key of a row of none; that one plays alone, no playlist of the season): unlinked.
+// (mel_row_rel: the infoHash, else the key of a row of none - through Debrid only): unlinked.
 // A linked episode plays in a playlist of its whole season (by season_numbers),
 // the others lazy, then E1 of the next season; P+/P- and the autoplay work.
 // $ts (TorrServer, torrserver.php): array('url' => stream URL, 'eps' =>
@@ -272,7 +272,7 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
     $linked = $mv['dune_id'] !== '' && $rel !== '' && ($ts || $ready || $r['cached'] === true);
     $seasons = $mv['seasons'];
     $season = $linked && $e > 0 && isset($seasons[$s]) && $e <= $seasons[$s] && $seasons[$s] <= MEL_EPISODES_MAX &&
-        preg_match('/^[0-9a-f]{40}$/D', $r['hash']);
+        ($ts ? preg_match('/^[0-9a-f]{40}$/D', $r['hash']) : mel_rel_ok($rel));
     $others = $ts ? $ts['others'] : array();
     $plan = $season ? mel_play_plan($seasons, $s, $others) : array();
     if (count($plan) > MEL_EPISODES_MAX)
@@ -308,7 +308,7 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
             if ($q === $s && $i === $e)
                 $ndx = $n;
             $series[] = $q === $s && $i === $e ? $ser : (isset($urls[$q][$i]) ?
-                mel_vod_item($mv, $q, $i, $urls[$q][$i], $r['hash'], $list) : mel_lazy_series($mv, $q, $i, $r['hash'], $list, $mode));
+                mel_vod_item($mv, $q, $i, $urls[$q][$i], $rel, $list) : mel_lazy_series($mv, $q, $i, $rel, $list, $mode));
         }
         mel_movie_save($mv, $st['lang']);
     }
@@ -1411,6 +1411,31 @@ function mel_release_row($rows, $hash, $s, $e, $n = 0)
     return array($sel, $by);
 }
 
+// Row $r of list $st takes the bar of its release (mel_gc_share, mel_gc_bar_update), as the cursor does
+// (mel_release_row: a row with the episode first). A key of mel_nf_key (mel_rel_nf) comes in several rows of one list,
+// the files of one release: the episode, its opening, the extras - of them only those with the episode of the list in
+// the file (mel_has_ep), if any has it; none has: all of them. An infoHash, a movie: every row of it, as before.
+/**
+ * @param MelState $st
+ * @param MelRow $r
+ * @return bool
+ */
+function mel_row_marked($st, $r)
+{
+    $rel = mel_row_rel($r);
+    $s = $st['s'];
+    $e = $st['e'];
+    $n = mel_cin_n($st['movie']['cin'], $s, $e);
+    if ($e < 1 || !mel_rel_nf($rel) || mel_has_ep($r, $s, $e, $n))
+        return true;
+    foreach ($st['rows'] as $o)
+    {
+        if (mel_has_ep($o, $s, $e, $n) && mel_row_rel($o) === $rel)
+            return false;
+    }
+    return true;
+}
+
 // The dialog of a failed mel_relist: the error, its detail, OK; a reply of error
 // streams only, with the setting on: their window instead.
 /**
@@ -1540,7 +1565,8 @@ function mel_movie_load($key)
 // -> array(url, markers if any: get_vod_stream_info only; call_plugin makes the reply of $op), else error_action. The URL: from
 // MEL_FW_NEXT_URL_R, either operation of Debrid, TorrServer, Lampac - their handler runs here (mel_lazy_url); the
 // playlist goes on, the shell writes the record of the episode by the uid of its item. Else, the disk, an older
-// firmware: handle_user_input next / lp_next / lib_next, its new vod_play or dialog. A bad $pb: the error.
+// firmware: handle_user_input next / lp_next / lib_next, its new vod_play or dialog. A bad $pb (the key of a row of no
+// infoHash with mode ts too: mel_rel_nf): the error.
 /**
  * @param mixed $pb
  * @param string $op
@@ -1557,8 +1583,8 @@ function mel_lazy_action($pb, $op = '')
     // An episode of the disk (mel_lib_lazy_url).
     else if (is_string($pb) && strpos($pb, 'lib_next:') === 0)
         return mel_lib_lazy($pb);
-    else if (!is_string($pb) || !preg_match('/^aio_next:(' . MEL_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([0-9a-f]{40}):(debrid|ts)' .
-        '(?::([a-z0-9]{8}))?$/D', $pb, $m))
+    else if (!is_string($pb) || !preg_match('/^aio_next:(' . MEL_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):(' . MEL_REL_RE . '):(debrid|ts)' .
+        '(?::([a-z0-9]{8}))?$/D', $pb, $m) || ($m[5] === 'ts' && mel_rel_nf($m[4])))
     {
         mel_log('lazy: bad playback_url ' . (is_string($pb) ? mel_cut(mel_mask($pb), 100) : gettype($pb)));
         return mel_error('err_list_expired', '', true);
@@ -1758,7 +1784,7 @@ function mel_next_prof($in)
         mel_op_use($in->p, Mel::$settings['lp_prof']);
 }
 
-// Params k, s, e, h of next/next_pick -> array(key, s, e, hash) or null.
+// Params k, s, e, h of next/next_pick -> array(key, s, e, hash: the key of the release, MEL_REL_RE) or null.
 /**
  * @param stdClass $in
  * @return array{string, int, int, string}|null
@@ -1767,7 +1793,7 @@ function mel_next_params($in)
 {
     $p = array();
     foreach (array('k' => '/^' . MEL_DUNE_ID . '$/D', 's' => '/^[1-9][0-9]{0,3}$/D', 'e' => '/^[1-9][0-9]{0,4}$/D',
-        'h' => '/^[0-9a-f]{40}$/D') as $k => $re)
+        'h' => '/^(?:' . MEL_REL_RE . ')$/D') as $k => $re)
     {
         if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
             return null;
@@ -1923,7 +1949,7 @@ function mel_next_fetch_retry($key, $s, $e, $hash, $mode)
 }
 
 // A lazy episode, the way its playlist was started (m), never the other way.
-// debrid: the same release (infoHash) with a URL and this episode in its file,
+// debrid: the same release (infoHash, the key of a row of none: mel_row_rel) with a URL and this episode in its file,
 // a cached row first -> vod_play of it (mel_play checks it: a placeholder gets
 // its dialog). A row not cached plays only if the check finds a stream (the
 // CDN); else the dialog "not in this release".
@@ -1950,7 +1976,7 @@ function mel_next($in)
     mel_next_prof($in);
     $p = mel_next_params($in);
     $mode = isset($in->m) ? $in->m : '';
-    if (!$p || ($mode !== 'debrid' && $mode !== 'ts'))
+    if (!$p || ($mode !== 'debrid' && $mode !== 'ts') || ($mode === 'ts' && mel_rel_nf($p[3])))
     {
         mel_log('next: bad params');
         return mel_next_failed($lang, '', 'err_list_expired');

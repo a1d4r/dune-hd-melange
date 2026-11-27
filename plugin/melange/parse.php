@@ -821,6 +821,17 @@ function mel_rel_ok($t)
     return is_string($t) && preg_match('/^(?:' . MEL_REL_RE . ')$/D', $t) === 1;
 }
 
+// Key $t of a release (MEL_REL_RE) is that of mel_nf_key, of a row with no infoHash: Debrid only, no way through
+// TorrServer; several files of its release may come as rows of one key (mel_row_marked).
+/**
+ * @param string $t
+ * @return bool
+ */
+function mel_rel_nf($t)
+{
+    return strncmp($t, 'nf-', 3) === 0;
+}
+
 // The key of stream $st of a reply with no infoHash, "nf-<12 hex>": of the name of its release and the size. The name:
 // of a pack its folder (streamData.folderName; there the size is of the whole release: one key for all its episodes,
 // as an infoHash), else that of the file - one release comes with its name as the folder of one episode and as the
