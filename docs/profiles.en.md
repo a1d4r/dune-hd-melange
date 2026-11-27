@@ -28,7 +28,7 @@ Add several sources (Debrid, torrents, your own config) and open a movie on the 
 
 ## If it did not work
 
-- A source is missing from the POP UP menu or is marked "no config": see [Troubleshooting](troubleshooting.en.md#sources).
+- A source is missing from the "Source" panel or is marked "no config": see [Troubleshooting](troubleshooting.en.md#sources).
 - Source limit and other caveats: [Known limitations](limitations.en.md#sources).
 
 Next: [Your own torrent client](download-server.en.md) · [Contents](README.en.md)

@@ -31,6 +31,6 @@ If you have several servers, choose in "For the cache of" which one to use for r
 - "Check" shows a red line: see [Troubleshooting](troubleshooting.en.md).
 - A download was added to Download Station but stays waiting: set the default folder for that user in Download Station ([Troubleshooting](troubleshooting.en.md)).
 - Synology Download Station does not connect at an `https://…` address with the factory certificate: enter `http://NAS:5000`.
-- The POP UP menu has no "Download to server": not every release has it, only those where the source sent a torrent. With "No torrents" it is not there at all ([Advanced](advanced-options.en.md)).
+- The "Actions" panel has no "Download to server": not every release has it, only those where the source sent a torrent. With "No torrents" it is not there at all ([Advanced](advanced-options.en.md)).
 
 Next: [Appearance](appearance.en.md) · [Contents](README.en.md)

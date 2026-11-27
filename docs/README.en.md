@@ -29,7 +29,7 @@ New here? Start with Quick start.
 - [Your own torrent client](download-server.en.md): download a release to a NAS or computer
 - [Appearance](appearance.en.md): logo, ratings on posters
 - [Melange in the TV tab](tv-tab.en.md): Melange rows on the Dune home screen
-- [Advanced](advanced-options.en.md): intro skipping, addon errors, menu without color buttons
+- [Advanced](advanced-options.en.md): intro skipping, addon errors, remote without color buttons
 - [Backup](backup.en.md): save settings and move them to another Dune
 
 **For advanced users**

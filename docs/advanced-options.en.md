@@ -1,6 +1,6 @@
 # Advanced
 
-Choose whether Melange starts torrents, shows skip-intro buttons and reports addon errors. If your remote has no colour buttons, you can also add sorting and release details to the menu here. [← Contents](README.en.md)
+Choose whether Melange starts torrents, shows skip-intro buttons and reports addon errors. If your remote has no colour buttons, you can also add sorting and release details to the "Actions" panel here. [← Contents](README.en.md)
 
 1. On the settings page ([Settings page on a phone](phone-page.en.md)), open "Advanced".
 

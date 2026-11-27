@@ -173,7 +173,7 @@ On the settings page:
 
 | Message or symptom | What to do |
 |---|---|
-| A source is marked "no config" and is missing from the POP UP menu on the Dune | the source config was not created on the server (for example, the server did not answer). Open the source on the page and press "Save" |
+| A source is marked "no config" and is missing from the "Source" panel on the Dune | the source config was not created on the server (for example, the server did not answer). Open the source on the page and press "Save" |
 | "A source "…" exists already, choose another name" | change the name |
 | "There are 8 sources already. Delete one to add another." | delete a source you do not need |
 | "The source was deleted in another tab: reload the page" | reload the page |
@@ -183,7 +183,7 @@ On the Dune:
 | Message | What to do |
 |---|---|
 | "Source not changed: …" | the source did not answer. Try again later or choose another one |
-| "Sources changed on the page, the source is kept" | the source was changed on the page while the menu was open: open "Source" again |
+| "Sources changed on the page, the source is kept" | the source was changed on the page while the panel was open: open "Source" again |
 
 ## Catalog and the TV tab
 

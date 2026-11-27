@@ -74,7 +74,7 @@ What Melange cannot do, or does with caveats. [← Contents](README.en.md)
 ## Sources
 
 - At most 8 sources, and names don't repeat.
-- A source that has no config on the server yet (marked "no config") is not in the POP UP menu on the Dune. To fix it, see [Troubleshooting](troubleshooting.en.md#sources).
+- A source that has no config on the server yet (marked "no config") is not in the "Source" panel on the Dune. To fix it, see [Troubleshooting](troubleshooting.en.md#sources).
 - The choice in "Source" on the Dune is not remembered. A movie started from there later continues from the same source.
 - Unsaved changes are lost if you open another source.
 - Each source has its own Debrid keys. The TMDB key, TorrServer, your own torrent clients and other settings are shared by all sources.
