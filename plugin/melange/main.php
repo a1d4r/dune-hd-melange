@@ -2413,12 +2413,11 @@ function mel_dialog($title, $lines, $buttons)
 // its detail; '' none) and OK - the dialog of the shell of their lines (mel_dialog_lines of each: cut for its width).
 // It says what it is (Mel::$dlg): over a screen of ours the dialog of ours in tone $tone (err, warn; null: err with a
 // text, warn without), its text the paragraphs whole, MEL_MSG_SEP between them (MelKit::dialog has one text of 3
-// lines and no line break in it; it wraps and cuts its own); false: none - no look of ours approved for it (a
-// success, a doubt), the window of the shell everywhere.
+// lines and no line break in it; it wraps and cuts its own). Another icon, more buttons: mel_ask.
 /**
  * @param string $title
  * @param list<string> $parts
- * @param string|null|false $tone
+ * @param string|null $tone
  * @return MelAction
  */
 function mel_msg($title, $parts = array(), $tone = null)
@@ -2432,7 +2431,7 @@ function mel_msg($title, $parts = array(), $tone = null)
             $text[] = trim($p);
     }
     $a = mel_dialog($title, $lines, array('OK' => mel_close_and(null)));
-    return $tone === false ? $a : mel_msg_say($a, $title, implode(MEL_MSG_SEP, $text), 'OK', $tone);
+    return mel_msg_say($a, $title, implode(MEL_MSG_SEP, $text), 'OK', $tone);
 }
 
 // Window $a of the shell, whole as it is returned, is a message that says one thing and only closes by its one

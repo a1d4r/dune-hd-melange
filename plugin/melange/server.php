@@ -371,19 +371,20 @@ function mel_srv_push($in)
         list($status, $key, $detail) = mel_syn_add($srv, $mg, $row['hash']);
     else
         list($status, $key, $detail) = mel_qbt_add($srv, $mg);
-    // "Added", "there already" and "maybe added" stay windows of the shell (tone false): the dialog of ours is that of
-    // an error, no look of a success or of a doubt approved yet.
+    // The dialog of ours by the outcome (owner 27.11.2026): added - the check in a circle in green, there already - the
+    // same in grey, maybe added - the mark of a warning and the reason, not added - an error.
+    $ok = array(mel_btn('OK', 'k_icon_check'));
     if ($status === 'dup')
     {
         mel_log('server: there already');
-        return mel_msg(str_replace('{srv}', $srv['name'], mel_tr($lang, $key)), array(), false);
+        return mel_ask(str_replace('{srv}', $srv['name'], mel_tr($lang, $key)), array(), 'k_icon_circle-check', '', $ok);
     }
     if ($status !== 'added')
     {
         mel_log("server: not added: $key" . ($detail !== '' ? " ($detail)" : ''));
         return mel_msg(str_replace('{srv}', $srv['name'], mel_tr($lang, $status === 'maybe' ? 'srv_maybe' : 'srv_failed')),
-            array(mel_tr($lang, $key), $detail), $status === 'maybe' ? false : null);
+            array(mel_tr($lang, $key), $detail), $status === 'maybe' ? 'warn' : null);
     }
     mel_log('server: added');
-    return mel_msg(str_replace('{srv}', $srv['name'], mel_tr($lang, 'srv_added')), array(), false);
+    return mel_ask(str_replace('{srv}', $srv['name'], mel_tr($lang, 'srv_added')), array(), 'k_icon_circle-check', 'ok', $ok);
 }
