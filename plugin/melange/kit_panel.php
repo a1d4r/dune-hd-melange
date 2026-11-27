@@ -493,16 +493,17 @@ function mel_kp_apply($f)
 }
 
 // The choice of the check list that closed the panel last on the screen of owner $owner (MelKpChoice: on and order,
-// ids of its items in the order of the lines), the panel itself or a submenu of it. Given once. None (another screen,
-// another overlay since, no check list closed it): null.
+// ids of its items in the order of the lines), the panel itself or a submenu of it; the state of the owner in hand
+// from now (it waited, if a key or a tick of another screen came since the close). Given once. None (another overlay
+// of this screen since, no check list closed it): null.
 /**
  * @param string $owner
  * @return MelKpChoice|null
  */
 function mel_kp_done($owner)
 {
-    $st = mel_ovl_st();
-    if (!$st || $st['scr']['owner'] !== $owner || !isset($st['kp_done']))
+    $st = mel_ovl_take($owner) ? mel_ovl_st() : null;
+    if (!$st || !isset($st['kp_done']))
         return null;
     $c = $st['kp_done'];
     unset($st['kp_done']);

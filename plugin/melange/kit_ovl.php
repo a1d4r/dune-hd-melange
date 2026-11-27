@@ -19,16 +19,20 @@
 // none - whatever is in it [device P4].
 //
 // The state is by owner: the screens under the one on top keep their overlays (HOME, another screen with an overlay
-// of its own, back). One state is in hand (MelOvl::$st: of the owner that opened or got a key last), the open ones of
-// the other owners wait in MelOvl::$rest; a key or a tick with o takes the state of its owner in hand
-// (mel_ovl_stale). The files of the overlays read and write the one in hand only by mel_ovl_st, mel_ovl_set and
-// mel_ovl_shown. A record dies:
+// of its own, back). One state is in hand (MelOvl::$st: of the owner that opened or got a key last), those of the
+// other owners wait in MelOvl::$rest; a key or a tick with o takes the state of its owner in hand (mel_ovl_stale).
+// A record dies:
 //   - its screen put anew (get_folder_view, a tick that replaces it) or finished: mel_ovl_drop;
-//   - closed, when another owner comes in hand: a closed one is kept only for the keys right after the close and for
-//     the choice of a check list (mel_kp_done), both before any key of another screen;
-//   - open, its screen gone with no word to the plugin (the shell closed it, a list replaced by a new rid): pushed out
-//     as the oldest when more than MEL_OVL_REST wait; a key of a live screen pushed out so is of a stale one;
+//   - closed, when another owner comes in hand: a closed one is kept only for the keys right after the close; one
+//     with the choice of a check list not taken yet (kp_done, mel_kp_done) waits as the open ones do;
+//   - waiting, its screen gone with no word to the plugin (the shell closed it, a list replaced by a new rid): pushed
+//     out as the oldest when more than MEL_OVL_REST wait; a key of a live screen pushed out so is of a stale one;
 //   - a php_server restart: all of them (memory only).
+//
+// The state in hand, the contract: the code of a screen calls only the open of an overlay (mel_kp_open,
+// mel_dlg_open, mel_wait_open, mel_lib_win_open), mel_ovl_open_on, mel_ovl_drop and mel_kp_done - they find the state
+// by the owner. mel_ovl_st, mel_ovl_set, mel_ovl_shown and mel_ovl_close work on the one in hand whoever its owner is:
+// only for the files of the overlays, and only after mel_ovl_stale($in) or mel_ovl_open in the same request.
 //
 // The gate, one for every screen (mel_ovl_under, the first thing mel_handle_user_input does): under its open overlay
 // a screen does none of the keys of its own map nor the tick of its timer (sent before the map of the overlay was
@@ -41,7 +45,7 @@
 
 // The id of the slot of the overlay.
 define('MEL_OVL', 'ovl');
-// The open overlays of the owners not in hand kept at most.
+// The overlays of the owners not in hand kept at most.
 define('MEL_OVL_REST', 8);
 
 class MelOvl
@@ -52,7 +56,8 @@ class MelOvl
     // map was applied) is of a live screen. Memory of php_server only.
     /** @var MelOvlState|null */
     public static $st = null;
-    // The open overlays of the other owners, by owner, the oldest first; MEL_OVL_REST at most (see above).
+    // The overlays of the other owners that wait (the open ones, a closed one with kp_done), by owner, the oldest
+    // first; MEL_OVL_REST at most (see above).
     /** @var array<string, MelOvlState> */
     public static $rest = array();
 }
@@ -86,8 +91,8 @@ function mel_ovl_shown($kind)
     return MelOvl::$st && MelOvl::$st['open'] && isset(MelOvl::$st[$kind]);
 }
 
-// The overlay in hand out of it: an open one waits in MelOvl::$rest as the newest (the oldest over MEL_OVL_REST
-// pushed out, logged), a closed one is gone.
+// The overlay in hand out of it: an open one, and a closed one with the choice of a check list not taken yet (kp_done),
+// waits in MelOvl::$rest as the newest (the oldest over MEL_OVL_REST pushed out, logged); another closed one is gone.
 /**
  * @return void
  */
@@ -95,7 +100,7 @@ function mel_ovl_park()
 {
     $st = MelOvl::$st;
     MelOvl::$st = null;
-    if (!$st || !$st['open'])
+    if (!$st || !($st['open'] || isset($st['kp_done'])))
         return;
     $owner = $st['scr']['owner'];
     unset(MelOvl::$rest[$owner]);
