@@ -78,6 +78,28 @@ function mel_lpv_search_open($st, $how, $opt = array())
     return mel_lpv_search_shell($run);
 }
 
+// Text $key about a search of the profile of Lampac of id $id: its {name} the name of that source, as "Источник" and
+// the line over the lists show it (mel_src_name; the owner 27.11.2026, (30): not «онлайн» - the releases are online
+// too), then $sub. No such ready profile (gone on the page since): «Lampac». $w (units of mel_gc_w at 1000; 0: any):
+// a wide name cut with "…" to what the other words leave of it - the words after the name stay.
+/**
+ * @param string $lang
+ * @param string $key
+ * @param string $id
+ * @param array<string, string|int> $sub
+ * @param int $w
+ * @return string
+ */
+function mel_lpv_src_tr($lang, $key, $id, $sub = array(), $w = 0)
+{
+    $name = mel_src_name($id);
+    if ($name === '')
+        $name = 'Lampac';
+    if ($w > 0)
+        $name = mel_gc_cut_w($name, 1000, $w - mel_gc_w(mel_lpv_tr($lang, $key, array('name' => '') + $sub), 1000));
+    return mel_lpv_tr($lang, $key, array('name' => $name) + $sub);
+}
+
 // The search of run $run as the dialog of the shell "Ищу в <its source>…": the run kept between its ticks (MelLpv::$run), its
 // two lines and "Отмена" (mel_lpv_search_defs), its timer to lp_tick (mel_lpv_tick).
 /**
