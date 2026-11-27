@@ -816,7 +816,7 @@ define('MEL_REL_RE', '[0-9a-f]{40}|nf-[0-9a-f]{12}');
  * @param mixed $t
  * @return bool
  */
-function mel_rel_ok($t)
+function mel_rel_key_ok($t)
 {
     return is_string($t) && preg_match('/^(?:' . MEL_REL_RE . ')$/D', $t) === 1;
 }
@@ -836,7 +836,7 @@ function mel_rel_nf($t)
 // of a pack its folder (streamData.folderName; there the size is of the whole release: one key for all its episodes,
 // as an infoHash), else that of the file - one release comes with its name as the folder of one episode and as the
 // file, no folder, of another: one key. No size: the name of the file alone (a folder with no size is not taken:
-// several releases share one). The fields as they came, the size in bytes. '' no name.
+// several releases share one). The names as mel_str gives them (trimmed, in UTF-8), the size in bytes. '' no name.
 /**
  * @param array<mixed> $st
  * @return string

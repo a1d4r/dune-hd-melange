@@ -238,14 +238,14 @@ function mel_wh_card_last($dune_id)
 }
 
 // The rest $t of the uid of a record of ours ("aio:<dune id>:<s>:<e>:<rest>") -> array(hash: the key of a release
-// (mel_rel_ok: its infoHash, nf-… of a row of none), key: the key of an online record, mel_lp_key_parse), '' each it is not.
+// (mel_rel_key_ok: its infoHash, nf-… of a row of none), key: the key of an online record, mel_lp_key_parse), '' each it is not.
 /**
  * @param string $t
  * @return array{string, string}
  */
 function mel_wh_tail($t)
 {
-    return array(mel_rel_ok($t) ? $t : '', mel_lp_key_parse($t) ? $t : '');
+    return array(mel_rel_key_ok($t) ? $t : '', mel_lp_key_parse($t) ? $t : '');
 }
 
 // The latest of our records of a copy on the disk of card $hid (MelWh::$lib), null none.

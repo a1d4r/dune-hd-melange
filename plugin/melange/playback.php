@@ -129,6 +129,11 @@ function mel_vod_item($mv, $s, $e, $url, $hash, $list)
 // recent_uid of episode $e of season $s of card $id by $hash (an infoHash, the key of a voice of Lampac). Read back
 // by history.php: mel_wh_pick (the release), mel_wh_progress, mel_wh_series (the progress of the episodes on the own
 // card); mel_lazy_url expects it in the reply of a lazy episode.
+// The rest of a uid of ours is one of five, each with a check of its own: <40 hex> an infoHash and nf-<12 hex> a row
+// of none (mel_rel_key_ok, parse.php), lp-<path>-<8 hex> a voice of Lampac (mel_lp_key_parse, lampac.php),
+// lib-<12 hex> a copy of the media library (mel_lib_key_ok, library.php: the uids of playback_lib.php), "m" the mark
+// of an episode (mel_wh_mark_uid and mel_wh_marks, history.php). The prefixes nf-, lp-, lib- and "m" start with no
+// hex digit and differ from each other: no rest passes two checks.
 /**
  * @param string $id
  * @param int|string $s
@@ -267,12 +272,12 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
             $ready = true;
         }
     }
-    // The key of the release in the uid and wh_release: the infoHash, else that of mel_nf_key (Debrid only).
-    $rel = mel_row_rel($r);
+    // The key of the release in the uid and wh_release: the infoHash, else that of mel_nf_key (Debrid only: none through TorrServer).
+    $rel = $ts ? $r['hash'] : mel_row_rel($r);
     $linked = $mv['dune_id'] !== '' && $rel !== '' && ($ts || $ready || $r['cached'] === true);
     $seasons = $mv['seasons'];
     $season = $linked && $e > 0 && isset($seasons[$s]) && $e <= $seasons[$s] && $seasons[$s] <= MEL_EPISODES_MAX &&
-        ($ts ? preg_match('/^[0-9a-f]{40}$/D', $r['hash']) : mel_rel_ok($rel));
+        ($ts ? preg_match('/^[0-9a-f]{40}$/D', $r['hash']) : mel_rel_key_ok($rel));
     $others = $ts ? $ts['others'] : array();
     $plan = $season ? mel_play_plan($seasons, $s, $others) : array();
     if (count($plan) > MEL_EPISODES_MAX)

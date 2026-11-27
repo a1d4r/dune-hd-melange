@@ -597,7 +597,7 @@ function mel_resume($in)
     else if ($mode === 'lampac')
         $ok = true;
     else
-        $ok = preg_match('/^[0-9a-f]{40}$/', $rel) === 1 || ($mode === 'debrid' && mel_rel_ok($rel));
+        $ok = mel_rel_key_ok($rel) && ($mode === 'debrid' || !mel_rel_nf($rel));
     if (!$ok)
         return null;
     return array(
