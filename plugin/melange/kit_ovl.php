@@ -42,6 +42,9 @@
 // what the map does not have - the keys of the overlay, the action of an item or of «Готово» (it comes after the
 // close), the inputs of the player and of the dialogs of the shell over the screen (next, the ticks of a wait of the
 // shell). A tick of a timer the record does not have: its screen (mel_oc_tick).
+// A tick that puts its screen anew checks mel_ovl_open_on itself, the gate or not: the timer of the shell may be one
+// the record does not have (mel_oc_tick). The screens of kit_scr.php are no owners: the o of their keys (ks_key,
+// ks_tick) is the id of the screen (MelKs), they have no overlay and their ticks are their own.
 
 // The id of the slot of the overlay.
 define('MEL_OVL', 'ovl');
@@ -212,6 +215,12 @@ function mel_ovl_open($scr, $st, $map, $defs, $post = null, $timer = null)
     }
     /** @var MelOvlScreen $rec */
     $rec = array('owner' => $owner, 'map' => $smap, 'timer' => $stimer, 'sel' => $sel);
+    $named = false;
+    foreach ($smap as $a)
+        $named = $named || mel_ovl_names($a, $owner);
+    // The gate (mel_ovl_under) knows the keys of the screen by the owner in their params.
+    if (!$named)
+        mel_log('kit overlay: no action of the map of the screen names its owner, its keys not gated');
     // The overlay of another owner waits; the one this owner had is replaced.
     if (MelOvl::$st && MelOvl::$st['scr']['owner'] !== $owner)
         mel_ovl_park();
@@ -264,41 +273,67 @@ function mel_ovl_open_on($owner)
     return $st && $st['open'] && $st['scr']['owner'] === $owner;
 }
 
+// The params of action $a of the map of a screen that name its owner $owner: the owner itself (rid, c) or the
+// media_url of its screen, "<kind>:<owner>" (from of the keys Fav and search, mel_mlv_key_acts).
+/**
+ * @param mixed $a
+ * @param string $owner
+ * @return array<string, string>
+ */
+function mel_ovl_names($a, $owner)
+{
+    $p = is_array($a) && isset($a[GuiAction::params]) && is_array($a[GuiAction::params]) ? $a[GuiAction::params] : array();
+    $out = array();
+    $n = strlen($owner) + 1;
+    foreach ($p as $k => $v)
+    {
+        if (is_string($v) && ($v === $owner || substr($v, -$n) === ":$owner"))
+            $out[$k] = $v;
+    }
+    return $out;
+}
+
+// Input $in is the key of action $a of the map of the screen of owner $owner: its control, and the params of $a that
+// name the owner (mel_ovl_names; one at least) the same in $in - the other params may differ (P+ of a map built
+// without it).
+/**
+ * @param mixed $a
+ * @param string $owner
+ * @param stdClass $in
+ * @return bool
+ */
+function mel_ovl_key_of($a, $owner, $in)
+{
+    $names = mel_ovl_names($a, $owner);
+    if (!$names || !isset($a[GuiAction::params]['control_id'], $in->control_id) ||
+        $a[GuiAction::params]['control_id'] !== $in->control_id)
+        return false;
+    foreach ($names as $k => $v)
+    {
+        if (!isset($in->$k) || $in->$k !== $v)
+            return false;
+    }
+    return true;
+}
+
 // The gate (see above): input $in is a key of the map or the tick of the timer of a screen under its open overlay, in
-// hand or waiting - the control of an action of its map with the params of it that name the owner (the other params
-// may differ: P+ of a map built without it) - not done, logged.
+// hand or waiting (mel_ovl_key_of; not the event of the player) - not done, logged.
 /**
  * @param stdClass $in
  * @return bool
  */
 function mel_ovl_under($in)
 {
-    $control = isset($in->control_id) ? $in->control_id : null;
     $all = array_values(MelOvl::$rest);
     if (MelOvl::$st)
         $all[] = MelOvl::$st;
     foreach ($all as $st)
     {
-        if (!$st['open'])
-            continue;
-        $owner = $st['scr']['owner'];
-        foreach ($st['scr']['map'] as $ev => $a)
+        foreach ($st['open'] ? $st['scr']['map'] : array() as $ev => $a)
         {
-            $p = isset($a[GuiAction::params]) && is_array($a[GuiAction::params]) ? $a[GuiAction::params] : array();
-            if ($ev === GUI_EVENT_MENU_PLAYBACK_FINISH || !isset($p['control_id']) || $p['control_id'] !== $control)
+            if ($ev === GUI_EVENT_MENU_PLAYBACK_FINISH || !mel_ovl_key_of($a, $st['scr']['owner'], $in))
                 continue;
-            $named = false;
-            foreach ($p as $k => $v)
-            {
-                if (!is_string($v) || strpos($v, $owner) === false)
-                    continue;
-                if (!isset($in->$k) || $in->$k !== $v)
-                    continue 2;
-                $named = true;
-            }
-            if (!$named)
-                continue;
-            mel_log("kit overlay: $control of the screen under its overlay, none");
+            mel_log("kit overlay: {$in->control_id} of the screen under its overlay, none");
             return true;
         }
     }
