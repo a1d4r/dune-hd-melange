@@ -317,7 +317,7 @@ function mel_error($key, $detail = '', $stop = false, $log = true, $title = null
         mel_log("error: $key" . ($detail !== '' ? " ($detail)" : ''));
     $a = mel_error_act($key, $detail, $stop, $title);
     Mel::$dlg = array('shell' => $a, 'desc' => $stop ? null : array('key' => $title !== null ? '' : $key,
-        'title' => strval($title), 'text' => trim(strval($detail)), 'tone' => $tone, 'ok' => 'OK'));
+        'title' => strval($title), 'text' => trim(strval($detail)), 'tone' => $tone, 'ok' => 'OK', 'act' => null));
     return $a;
 }
 
@@ -2272,7 +2272,7 @@ function mel_play_action($in, $hist = null, $src = '')
         if ($ts >= 0 && !$off && mel_ts_alive())
         {
             mel_log("$tag -> TorrServer");
-            return mel_ts_open($st, $ts, $resume['pos'], '', false, true, $resume['next']);
+            return mel_ts_open($st, $ts, $resume['pos'], '', null, false, true, $resume['next']);
         }
         mel_log("$tag: " . ($pick['rows'] === 0 ? 'not found' : ($off && $mode !== 'debrid' ? 'no torrents' :
             ($ts < 0 ? 'no way in this mode' : 'TorrServer does not answer'))) . ', showing the list');
@@ -2438,19 +2438,21 @@ function mel_msg($title, $parts = array(), $tone = null)
 // Window $a of the shell, whole as it is returned, is a message that says one thing and only closes by its one
 // button $ok: title $title, text $text ('' none) - said so (Mel::$dlg): over a screen of ours the dialog of ours in
 // tone $tone (err, warn; null: err with a text, warn without). mel_msg, and a message whose window of the shell is
-// not that of mel_msg (its lines cut another way, another label, keys of its own).
+// not that of mel_msg (its lines cut another way, another label, keys of its own). $act: what the dialog of ours
+// runs after its close, by its button or RETURN (the window of the shell has it in its own button).
 /**
  * @param MelAction $a
  * @param string $title
  * @param string $text
  * @param string $ok
  * @param string|null $tone
+ * @param MelAction|null $act
  * @return MelAction
  */
-function mel_msg_say($a, $title, $text, $ok, $tone = null)
+function mel_msg_say($a, $title, $text, $ok, $tone = null, $act = null)
 {
     Mel::$dlg = array('shell' => $a, 'desc' => array('key' => '', 'title' => $title, 'text' => $text, 'tone' => $tone,
-        'ok' => $ok));
+        'ok' => $ok, 'act' => $act));
     return $a;
 }
 
@@ -2568,7 +2570,7 @@ function mel_scr_of($in, $control)
 function mel_dlg_say($w)
 {
     return mel_dlg_error_desc($w['ok'], $w['key'] !== '' ? mel_tr(mel_catv_lang(), $w['key']) : $w['title'], $w['text'],
-        null, $w['tone']);
+        $w['act'], $w['tone']);
 }
 
 // The end of a wait by action $a, for its host (MelWaitTick, kit_dlg.php: the window of ours, or the dialog of the

@@ -1389,12 +1389,13 @@ function mel_lpv_errors_of($st)
 // --- MENU and the keys of the lists.
 
 // lp_refresh ("Обновить") of the online list $st: a new search, not within MEL_LPV_REFRESH s of
-// the last one (a message then).
+// the last one (a message then); $scr, the record of its screen: the wait window of ours over it (mel_lpv_search_open).
 /**
  * @param MelState $st
+ * @param MelOvlScreen|null $scr
  * @return MelAction
  */
-function mel_lpv_refresh($st)
+function mel_lpv_refresh($st, $scr = null)
 {
     $wait = (int) ceil(MEL_LPV_REFRESH - (mel_lp_now() - $st['lp']['t']));
     if ($wait > 0)
@@ -1402,7 +1403,7 @@ function mel_lpv_refresh($st)
         mel_log("lampac: refresh in $wait s");
         return mel_msg(mel_lpv_tr($st['lang'], 'lp_refresh_wait', array('n' => $wait)));
     }
-    return mel_lpv_search_open($st, 'replace');
+    return mel_lpv_search_open($st, 'replace', array('scr' => $scr));
 }
 
 // lp_pick (ENTER) of the online list $st: the line of a balancer - folded or unfolded (mel_lpv_fold); the row "Ещё N" - the
@@ -1422,7 +1423,12 @@ function mel_lpv_pick($in, $st)
         return mel_lpv_fold($st, $sel, $top);
     $i = mel_lpv_row_of($L, $sel);
     if ($i < 0)
-        return $v['left'] > 0 ? mel_lpv_search_open($st, 'replace', array('more' => true)) : null;
+    {
+        if ($v['left'] <= 0)
+            return null;
+        list($scr) = mel_gc_scr_live($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+        return mel_lpv_search_open($st, 'replace', array('more' => true, 'scr' => $scr));
+    }
     $r = $v['rows'][$i];
     $base = Mel::$settings['lp'];
     $left = Mel::$t0 > 0 ? MEL_OP_BUDGET - (microtime(true) - Mel::$t0) : MEL_OP_BUDGET;
@@ -1623,6 +1629,10 @@ function mel_lpv_input($in, $control)
     // Under the player (mel_lpv_lazy): no list.
     if ($control === 'lp_next')
         return mel_lpv_next($in);
+    if ($control === 'lp_wt_done')
+        return mel_lpv_wait_done($in);
+    if ($control === 'lp_wt_redraw')
+        return mel_lpv_redraw($in);
     if ($control === 'lp_cancel')
     {
         if (MelLpv::$run && isset($in->sid) && $in->sid === MelLpv::$run['sid'])
@@ -1669,9 +1679,11 @@ function mel_lpv_input($in, $control)
     }
     if ($control === 'lp_chosen')
         return mel_lpv_chosen($in, $st);
-    if ($control === 'lp_refresh')
-        return mel_lpv_refresh($st);
-    if ($control === 'lp_srcs_done')
-        return mel_lpv_srcs_apply($st, $choice);
+    if ($control === 'lp_refresh' || $control === 'lp_srcs_done')
+    {
+        // A search from the screen: the wait window of ours over it, by its record.
+        list($scr) = mel_gc_scr_live($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+        return $control === 'lp_refresh' ? mel_lpv_refresh($st, $scr) : mel_lpv_srcs_apply($st, $choice, $scr);
+    }
     return null;
 }

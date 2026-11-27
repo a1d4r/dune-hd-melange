@@ -1590,7 +1590,7 @@ function mel_gc_scr($rid, $acts, $sel)
 // of releases (mel_gc_screen) - with the cursor of the shell's sel_state $raw, else its last one (mel_lpv_pos,
 // mel_gc_pos). $keep: that cursor kept as the last one of the list (Mel::$state) - the menus: the actions of their
 // items come with no sel_state of the shell. The one place the record of a live list is made for what opens over it
-// (a panel, a dialog); its full view makes its own with the view. -> array(the record, sel, top).
+// (a panel, a dialog, a wait); its full view makes its own with the view. -> array(the record, sel, top).
 /**
  * @param MelState $st
  * @param mixed $raw
@@ -1616,22 +1616,6 @@ function mel_gc_scr_live($st, $raw, $keep = false)
     return array(mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top)), $sel, $top);
 }
 
-// The record (mel_gc_scr_live, the cursor of sel_state $raw) of live list $st for the wait window of a start through
-// TorrServer over it (mel_ts_open): of the list of releases only - null with the online list on the screen, its wait
-// stays the window of the shell.
-/**
- * @param MelState $st
- * @param mixed $raw
- * @return MelOvlScreen|null
- */
-function mel_gc_ts_scr($st, $raw)
-{
-    if (!empty($st['lp_on']))
-        return null;
-    list($scr) = mel_gc_scr_live($st, $raw);
-    return $scr;
-}
-
 // The record (mel_gc_scr) of the screen of a list gone (replaced, php_server restarted) by its rid $rid: the keys every
 // list has, without those of an episode (they do nothing there) - of the online list when control $control of the
 // input is its own (lp_) -, the sel_state $raw the shell sent.
@@ -1648,8 +1632,8 @@ function mel_gc_scr_gone($rid, $control, $raw)
 }
 
 // The controls of the own inputs of the screen of a list (mel_gc_scr_in): the keys of its map, the actions of the
-// items of its panels and of «Готово» of their check lists - of the list of releases (gc_) and of the online list
-// (lp_). Each is one the screen sends: a control here that no map, no panel and no chain of them has would be a name
+// items of its panels and of «Готово» of their check lists, of a button of its wait window (lp_wt_done) - of the list
+// of releases (gc_) and of the online list (lp_). Each is one the screen sends: a control here that no map, no panel and no chain of them has would be a name
 // gone, its reply still thought shown over the list.
 /**
  * @return list<string>
@@ -1658,7 +1642,7 @@ function mel_gc_own()
 {
     return array('gc_move', 'gc_pick', 'gc_info', 'gc_menu', 'gc_flip', 'gc_sort', 'gc_refresh', 'gc_main', 'gc_src',
         'gc_choose', 'gc_dl', 'gc_push', 'gc_ts', 'lp_move', 'lp_pick', 'lp_menu', 'lp_flt_menu', 'lp_flt_done', 'lp_fold',
-        'lp_qsort', 'lp_flip', 'lp_choose', 'lp_refresh', 'lp_srcs_done');
+        'lp_qsort', 'lp_flip', 'lp_choose', 'lp_refresh', 'lp_srcs_done', 'lp_wt_done');
 }
 
 // The record of the screen (mel_gc_scr) of the list of releases or the online list whose own input $in of control
@@ -2313,7 +2297,10 @@ function mel_gc_input($in)
         Mel::$via = null;
         // A P2P stream (no URL, infoHash only): through TorrServer.
         if (mel_is_p2p($st['rows'][$row]))
-            return mel_ts_open(Mel::$state, $row, 0, $st['rid'], false, false, false, mel_gc_ts_scr(Mel::$state, $raw));
+        {
+            list($scr) = mel_gc_scr_live(Mel::$state, $raw);
+            return mel_ts_open(Mel::$state, $row, 0, $st['rid'], $scr);
+        }
         $a = mel_play($st, $st['rows'][$row], 0, null, false, null, $st['rid']);
         if ($a[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
             mel_playing($st['rid'], Mel::$state, $row);

@@ -267,7 +267,10 @@ function mel_gc_src($in)
         return null;
     }
     if (!mel_profile_rel($s['profiles'][$k]))
-        return mel_src_lampac($st, $id, $tag);
+    {
+        list($scr) = mel_gc_scr_live($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+        return mel_src_lampac($st, $id, $tag, $scr);
+    }
     // No IMDb and no TMDB: no releases (the menu has none of them; one of an old menu - the message).
     if (mel_rel_id($st['movie']) === '')
     {
@@ -338,16 +341,17 @@ function mel_src_releases($st, $id, $tag, $title, $sel_state)
 }
 
 // The online list of the profile of Lampac $id for list $st (mel_gc_src; $tag of the log): its online list there younger
-// than MEL_LPV_REFRESH s - back to it, no request; else the window "Ищу онлайн…" of it over the screen (the list of that
-// Lampac in its place at the end; its windows of no answer, nothing online keep the screen and its profiles). No online
-// list of this list (a series without its episode): nothing.
+// than MEL_LPV_REFRESH s - back to it, no request; else the window "Ищу онлайн…" of it over the screen (of record $scr:
+// the wait window of ours; the list of that Lampac in its place at the end; its windows of no answer, nothing online
+// keep the screen and its profiles). No online list of this list (a series without its episode): nothing.
 /**
  * @param MelState $st
  * @param string $id
  * @param string $tag
+ * @param MelOvlScreen|null $scr
  * @return MelAction|null
  */
-function mel_src_lampac($st, $id, $tag)
+function mel_src_lampac($st, $id, $tag, $scr = null)
 {
     $old = Mel::$settings;
     mel_op_use($st['prof'], $id);
@@ -370,7 +374,7 @@ function mel_src_lampac($st, $id, $tag)
     $ns = $st;
     $ns['lp_prof'] = $id;
     mel_log("$tag: the search");
-    return mel_lpv_search_open($ns, 'replace');
+    return mel_lpv_search_open($ns, 'replace', array('scr' => $scr));
 }
 
 // --- The name of the source over the lists (the releases and the online list, view_online.php).

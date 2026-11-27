@@ -283,13 +283,15 @@ function mel_lpv_srcs_view($v, $choice)
 // it (mel_kp_done; none: nothing). The sources in the order of its lines, each on or off, into lampac_sources (one the
 // panel did not have, found meanwhile: after them, as it is); none on, the same: nothing written; not written: an
 // error. Then the list at once: a source turned on that was off in its search - the search anew (it was not asked);
-// else the list of what it has (mel_lpv_srcs_view), the cursor on its row if still shown, else the first.
+// else the list of what it has (mel_lpv_srcs_view), the cursor on its row if still shown, else the first. $scr: the
+// record of the screen of $st, for the wait window of the search over it.
 /**
  * @param MelState $st
  * @param MelKpChoice|null $c
+ * @param MelOvlScreen|null $scr
  * @return MelAction|null
  */
-function mel_lpv_srcs_apply($st, $c)
+function mel_lpv_srcs_apply($st, $c, $scr = null)
 {
     if (!$c)
     {
@@ -342,6 +344,6 @@ function mel_lpv_srcs_apply($st, $c)
     $ns['lp']['gc_new'] = true;
     // The search over the rows of before: closed with no list (Cancel, no answer), this list of the new choice instead.
     if ($back)
-        return mel_lpv_search_open($ns, 'replace', array('redraw' => true));
+        return mel_lpv_search_open($ns, 'replace', array('redraw' => true, 'scr' => $scr));
     return mel_list_replace($ns);
 }

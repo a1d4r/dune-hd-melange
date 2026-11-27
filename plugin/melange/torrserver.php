@@ -1,7 +1,7 @@
 <?php
 // "Watch via TorrServer" (0.31.0): the magnet of a row to TorrServer MatriX
 // (POST /torrents add, save_to_db = ts_save), its file list awaited by a dialog
-// with a timer (over the list of releases: by the wait window of ours, mel_ts_wait_kit), then vod_play of
+// with a timer (over a list: by the wait window of ours, mel_ts_wait_kit), then vod_play of
 // /stream/<name>?link=<hash>&index=<id>&play:
 // the Dune player buffers a TorrServer stream itself. The episodes of the
 // pack go to the playlist as such URLs, the player switching them alone, or
@@ -804,21 +804,21 @@ function mel_ts_auth_err()
 // Mel::$tswait when $st is not the list on screen); an error dialog. $alive:
 // mel_ts_alive() has just answered, no echo again.
 // $miss_list: "Continue" to the next episode, no file of it -> the list of $st.
-// $scr: the record of the screen of the list of releases the start is from (mel_gc_ts_scr; ENTER on a P2P row, "Watch
-// via TorrServer" of its panel) - the wait is the window of ours over it (mel_ts_wait_kit); null, or no window of ours
+// $scr: the record of the screen of the list the start is from (mel_gc_scr_live; ENTER on a P2P row, "Watch via
+// TorrServer" of its panel) - the wait is the window of ours over it (mel_ts_wait_kit); null, or no window of ours
 // opened: the dialog of the shell.
 /**
  * @param MelState $st
  * @param int $i
  * @param int $pos
  * @param string $from
+ * @param MelOvlScreen|null $scr
  * @param bool $lazy
  * @param bool $alive
  * @param bool $miss_list
- * @param MelOvlScreen|null $scr
  * @return MelAction
  */
-function mel_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_list = false, $scr = null)
+function mel_ts_open($st, $i, $pos, $from, $scr = null, $lazy = false, $alive = false, $miss_list = false)
 {
     $r = $st['rows'][$i];
     $lang = $st['lang'];
@@ -1400,6 +1400,6 @@ function mel_ts_menu($in)
         mel_log('ts: menu of no live row with infoHash');
         return mel_error('err_list_expired');
     }
-    return mel_ts_open($st, $i, 0, $st['rid'], false, false, false,
-        mel_gc_ts_scr($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null));
+    list($scr) = mel_gc_scr_live($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    return mel_ts_open($st, $i, 0, $st['rid'], $scr);
 }

@@ -1995,7 +1995,7 @@ function mel_next($in)
     if ($st)
     {
         mel_log("next: $ep: the map of the last start, no request");
-        return mel_ts_open($st, 0, 0, Mel::$playing ? Mel::$playing['from'] : '', true);
+        return mel_ts_open($st, 0, 0, Mel::$playing ? Mel::$playing['from'] : '', null, true);
     }
     list($res, $pick, $none) = mel_next_fetch_retry($key, $s, $e, $hash, $mode);
     $errors = $res['errors'];
@@ -2020,7 +2020,7 @@ function mel_next($in)
     {
         $ts = $pick['ts'];
         // Its own echo: a dialog under the player.
-        return $ts >= 0 ? mel_ts_open($st, $ts, 0, $from, true) : mel_next_missing($st, $hash, $errors);
+        return $ts >= 0 ? mel_ts_open($st, $ts, 0, $from, null, true) : mel_next_missing($st, $hash, $errors);
     }
     $pre = null;
     if ($found && $found['cached'] !== true)
