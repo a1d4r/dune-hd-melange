@@ -283,7 +283,9 @@ class MelTslScan
 }
 // The list of the TorrServer of the settings -> array(entries in the order of the section or null on an error,
 // the key of the error ('' none), its detail); kept in MelTsl when read, none kept on an error. Every open of the
-// section reads it anew (mel_tsl_fetch): up to MEL_TSL_MAX entries, in MEL_TSL_LIST_S.
+// section reads it anew (mel_tsl_fetch): up to MEL_TSL_MAX entries, in MEL_TSL_LIST_S. A reply that is not the list
+// of a TorrServer (tsl_err_bad of a code not 200): TorrServe Silo there (mel_ts_silo, one request more, 2 s as of a
+// start) - ts_err_silo, no detail. Here, not in mel_tsl_fetch: the row of the catalog reads by it at every tick.
 /**
  * @return array{list<MelTsEntry>|null, string, string}
  */
@@ -296,6 +298,11 @@ function mel_tsl_load()
         return array(null, 'ts_err_off', '');
     }
     $r = mel_tsl_fetch('ts section', MEL_TSL_MAX, MEL_TSL_LIST_S);
+    if ($r[1] === 'tsl_err_bad' && strpos($r[2], 'HTTP ') === 0 && mel_ts_silo(Mel::$settings['ts'], 2))
+    {
+        mel_log('ts section: list: silo');
+        return array(null, 'ts_err_silo', '');
+    }
     if ($r[0] === null)
         return $r;
     $keep = array();

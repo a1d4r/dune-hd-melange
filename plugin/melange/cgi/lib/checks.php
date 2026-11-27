@@ -388,8 +388,8 @@ function mel_cgi_ts_check($base, $auth = '')
     if (!$matrix && mel_ts_silo($base, 3))
     {
         mel_cgi_log('ts check: silo');
-        return array(false, mel_cgi_l('Эта версия TorrServe не поддерживается: установите TorrServe MatriX',
-            'This TorrServe version is not supported: install TorrServe MatriX'));
+        return array(false, mel_cgi_l('TorrServe Silo не поддерживается: установите TorrServe MatriX',
+            'TorrServe Silo is not supported: install TorrServe MatriX'));
     }
     if ($code !== 200)
         return array(false, sprintf(mel_cgi_l('Ответил HTTP %d — это не TorrServer?', 'It answered HTTP %d: not a TorrServer?'), $code));
