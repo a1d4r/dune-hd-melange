@@ -2050,10 +2050,10 @@ function mel_oc_src_items($key, $c, $l, $pos)
     return mel_src_watch_kp($c['ui'], 'card_src', $p, mel_oc_has_lib($l));
 }
 
-// The panel "Действия" of card $c ($key) at place $pos of layout $l (owner 27.11.2026), three groups: of what
-// "Смотреть" plays - "Смотреть из" (mel_oc_src_items), "Копия на диске" (mel_oc_lib_menu_items); of the title - the
-// marks of the episode in focus in the row (mel_oc_mark_items; of a movie its mark, mel_oc_movie_mark_items),
-// "Карточка Дюны" (mel_oc_dune_items); "Настройки Melange". A group of no item is left out (mel_kp_frame).
+// The panel "Действия" of card $c ($key) at place $pos of layout $l (owner 27.11.2026), four groups: of what
+// "Смотреть" plays - "Смотреть из" (mel_oc_src_items), "Копия на диске" (mel_oc_lib_menu_items); the marks of the
+// episode in focus in the row (mel_oc_mark_items; of a movie its mark, mel_oc_movie_mark_items); "Карточка Дюны"
+// (mel_oc_dune_items); "Настройки Melange". A group of no item is left out (mel_kp_frame).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -2065,8 +2065,8 @@ function mel_oc_actions($key, $c, $l, $pos)
 {
     return array('title' => mel_tr($c['ui'], 'gc_actions'), 'groups' => array(
         array_merge(mel_oc_src_items($key, $c, $l, $pos), mel_oc_lib_menu_items($key, $c, $l, $pos)),
-        array_merge($l['kind'] === 'movie' ? mel_oc_movie_mark_items($key, $c) :
-            mel_oc_mark_items($key, $c, $l['prog'], $pos), mel_oc_dune_items($c)),
+        $l['kind'] === 'movie' ? mel_oc_movie_mark_items($key, $c) : mel_oc_mark_items($key, $c, $l['prog'], $pos),
+        mel_oc_dune_items($c),
         array(mel_setup_item($c['ui']))));
 }
 
