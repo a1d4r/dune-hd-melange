@@ -56,7 +56,7 @@ function mel_lpv_flt_open($in, $st)
     return mel_kp_open(mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top)), $d);
 }
 
-// lp_flt_done: "Готово" of the panel "Озвучка" of the online list $st (the panel itself closed, or its submenu left with
+// lp_flt_done: "Готово" of the panel "Озвучка" of the online list $st (the panel itself or its submenu left with
 // another choice) with choice $c of it (mel_kp_done; none: nothing). The voices checked (an id of no voice now goes) the
 // filter, none or all of them no filter; the same as before: nothing. Else the list with it (mel_lpv_flt_set).
 /**

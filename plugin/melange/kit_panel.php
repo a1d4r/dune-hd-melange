@@ -22,9 +22,10 @@
 // string, or the id of one before, is left out (logged); an empty group too; a menu that is not an array, none
 // (logged); no title: '' (logged).
 // A check list as a submenu: LEFT, RETURN and «Готово» with its choice as it was opened (the checks and the order) go
-// back to the panel on the item that opened it; with another choice they close the whole panel as those of a check
-// list opened itself do - the choice left to the screen (mel_kp_done), then the act of «Готово». So a check list as a
-// submenu must have done with act: with none its changed choice closes the panel and nothing takes it.
+// back to the panel on the item that opened it (RETURN and «Готово» of a check list opened itself: the close alone,
+// as edit_list_config of the shell left with no change); with another choice they close the whole panel as those of a
+// check list opened itself do - the choice left to the screen (mel_kp_done), then the act of «Готово». So a check list
+// as a submenu must have done with act: with none its changed choice closes the panel and nothing takes it.
 // The state, MelOvl::$st['kp'] (MelKp): stack, the panels, the first the top one, the last the one on screen (a
 // submenu), each (MelKpFrame): desc, its description; its, its items by id; groups, the ids of a menu by group; cur,
 // the cursor (a line of mel_kp_lines); top, the first line of the list shown; on, order: of a check list, id =>
@@ -420,9 +421,9 @@ function mel_kp_choice($f)
     return array('on' => $on, 'order' => $f['order']);
 }
 
-// The close of the panel by check list $f - the panel itself by «Готово» or RETURN (both give the choice, as
-// edit_list_config of the shell), or a submenu left with its choice changed: its choice kept for its screen
-// (mel_kp_done), then the action of «Готово».
+// The close of the panel by check list $f left with its choice changed (the checks or the order; the panel itself by
+// «Готово» or RETURN, a submenu by LEFT too): its choice kept for its screen (mel_kp_done), then the action of
+// «Готово».
 /**
  * @param MelKpFrame $f
  * @return MelAction|null
@@ -480,8 +481,9 @@ function mel_kp_input($in)
 //               «all»: its check (and «all» and the count); «Готово»: as return;
 //   right       an item with a submenu: as enter; a check line of a list with move: taken (⇅);
 //   left        a submenu: as return;
-//   return      a submenu: back to the panel on the same item (a check list with its choice changed: the close with
-//               the choice, then its act); a menu: the close; a check list: the close with the choice, then its act;
+//   return      a submenu: back to the panel on the same item; a menu or a check list itself: the close; a check
+//               list with its choice changed (not as it opened), a submenu too: the close with the choice, then its
+//               act;
 //   a line taken: enter, right, left and return put it (and nothing else).
 /**
  * @param string $k
@@ -521,10 +523,11 @@ function mel_kp_key($k)
         $f['cur'] = $to;
         $f = mel_kp_window($f);
     }
+    elseif ($check && $back && ($n > 0 || $k !== 'left') &&
+        mel_kp_choice($f) !== mel_kp_choice(mel_kp_frame($f['desc'])))
+        return mel_kp_apply($f);
     elseif ($back && $n > 0)
     {
-        if ($check && mel_kp_choice($f) !== mel_kp_choice(mel_kp_frame($f['desc'])))
-            return mel_kp_apply($f);
         $stack = $kp['stack'];
         array_pop($stack);
         if (!$stack)
@@ -532,9 +535,7 @@ function mel_kp_key($k)
         $kp['stack'] = $stack;
         return mel_kp_put($kp, $was);
     }
-    elseif ($check && $back && $k !== 'left')
-        return mel_kp_apply($f);
-    elseif ($k === 'return')
+    elseif ($k === 'return' || ($check && $back && $k !== 'left'))
         return mel_ovl_close();
     elseif ($l[0] === 'item' && ($k === 'enter' || $k === 'right'))
     {
