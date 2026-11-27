@@ -530,7 +530,7 @@ function mel_setup_quick($p)
  * @param bool $silo
  * @return array<string, mixed>
  */
-function mel_quick_done($p, $ts, $silo = false)
+function mel_quick_done($p, $ts, $silo)
 {
     $card = isset($p['card']);
     $lang = $card && isset($p['lang']) ? $p['lang'] : mel_catv_lang();

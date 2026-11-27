@@ -101,11 +101,11 @@ function mel_tsl_read()
  */
 function mel_tsl_err_texts($key, $lang, $detail)
 {
+    if ($key === 'ts_err_silo')
+        return array(mel_tr($lang, 'tsl_bad_title'), mel_tr($lang, $key));
     $names = array('ts_err_down' => 'down', 'ts_err_auth' => 'auth', 'ts_err_auth_bad' => 'auth_bad', 'tsl_err_bad' => 'bad',
         'ts_err_off' => 'off');
     $n = isset($names[$key]) ? $names[$key] : 'bad';
-    if ($key === 'ts_err_silo')
-        return array(mel_tr($lang, 'tsl_bad_title'), mel_tr($lang, $key));
     $text = mel_tr($lang, "tsl_{$n}_text");
     return array(mel_tr($lang, "tsl_{$n}_title"), $n === 'bad' && $detail !== '' ? "$text " . mel_tsl_addr($lang, $detail) : $text);
 }

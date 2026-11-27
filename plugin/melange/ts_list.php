@@ -776,7 +776,9 @@ function mel_tsl_step($d, $sec, $rg, $j)
 // One "get" of run $d, $sec s since its start, and its step (mel_tsl_step); a preload asked there (mel_ts_preload_file)
 // -> play at once or wait for it -> array(what now: play, files, error, wait; the run after it; why; the detail; the
 // files of file_stats; the TorrentStatus). A request of 2 s at most, of the preload 0.3 s: a tick holds php_server no
-// longer.
+// longer. A 404 of "get" (tsl_err_gone of the step): TorrServe Silo there now (mel_ts_silo, one request more, 2 s; an
+// entry of memory or of the copy of the row gets no read of the list, that would say it) - ts_err_silo, the torrent is
+// not gone; a "get" answered 200 gets no ping.
 /**
  * @param MelTslRun $d
  * @param int $sec
@@ -790,6 +792,8 @@ function mel_tsl_advance($d, $sec)
     if ($d['g'] && $rg['err'] === '' && $rg['code'] === 200 && is_array($j))
         $d['e'] = mel_tsl_got($hash, $j);
     list($what, $d, $why, $detail, $files) = mel_tsl_step($d, $sec, $rg, $j);
+    if ($what === 'error' && $why === 'tsl_err_gone' && mel_ts_silo(Mel::$settings['ts'], 2))
+        $why = 'ts_err_silo';
     mel_log(sprintf('ts section: %s get %d, %d s: %s, stat %s, peers %d/%d, seeders %d, %d files', $hash, $d['n'], $sec,
         $rg['err'] !== '' ? $rg['err'] : "HTTP {$rg['code']}", is_array($j) && isset($j['stat']) ? json_encode($j['stat']) : '-',
         mel_ts_int($j, 'active_peers'), mel_ts_int($j, 'total_peers'), mel_ts_int($j, 'connected_seeders'), count($files)) .
