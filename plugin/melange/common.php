@@ -143,13 +143,13 @@ function mel_debrid_main_read($dir)
     return $v !== '' && array_key_exists($v, mel_debrid_mains()) ? $v : '';
 }
 
-// Clients of a server (0.47.0): its type => name for the settings page.
+// Clients of a server (0.47.0; syn: 0.70.1): its type => name for the settings page.
 /**
  * @return array<string, string>
  */
 function mel_server_types()
 {
-    return array('qbt' => 'qBittorrent / rdt-client', 'tr' => 'Transmission');
+    return array('qbt' => 'qBittorrent / rdt-client', 'tr' => 'Transmission', 'syn' => 'Synology Download Station');
 }
 
 // A server as typed or stored: array of strings name, url, user, pass,
