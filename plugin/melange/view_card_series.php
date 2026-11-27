@@ -657,16 +657,23 @@ function mel_oc_row_changes($c, $l, $old, $new)
 
 // --- Keys.
 
-// ENTER on an episode not out yet: "Серия выйдет 16 ноября" (no date: "not out yet"), no streams asked.
+// ENTER on an episode not out yet: "Серия выйдет 16 ноября" (no date: "not out yet"), no streams asked. Not an error
+// (owner 27.11.2026): over the screen of the card ($own, see mel_oc_ep_watch) the dialog of ours with the clock in
+// grey and OK; no screen of the card (null) - the window of the shell as it was.
 /**
  * @param MelCardEp $ep
  * @param string $lang
+ * @param array<string, string>|null $own
  * @return MelAction
  */
-function mel_oc_soon_msg($ep, $lang)
+function mel_oc_soon_msg($ep, $lang, $own = null)
 {
-    return mel_error('card_ep_soon', '', false, true, $ep['date'] !== '' ?
-        str_replace('{d}', mel_oc_day($ep['date'], $lang, false, false), mel_tr($lang, 'card_ep_soon')) : mel_tr($lang, 'card_ep_soon_nodate'));
+    $t = $ep['date'] !== '' ? str_replace('{d}', mel_oc_day($ep['date'], $lang, false, false), mel_tr($lang, 'card_ep_soon')) :
+        mel_tr($lang, 'card_ep_soon_nodate');
+    if ($own === null)
+        return mel_error('card_ep_soon', '', false, true, $t);
+    mel_log('error: card_ep_soon');
+    return mel_ask($t, array(), 'k_icon_clock', '', array(mel_btn('OK', 'k_icon_check')));
 }
 
 // --- Marks "watched" (update_watched_marks of the shell, uids mel_wh_mark_uid).

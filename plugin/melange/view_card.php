@@ -1834,38 +1834,41 @@ function mel_oc_watch_in($c, $q = -1, $e = -1)
 // ENTER on episode $x of the meta of card $c (the row; the link of streams, mel_dl_streams), $ep the episode the card
 // offers (mel_oc_pick; null none): its list (mel_oc_watch: the season asked by mel_cm_req_s, the cursor on the release
 // or the online row of the history of $ep when it is this episode); one not out yet: the message (mel_oc_soon_msg).
-// $src: the profile of "Смотреть из…", '' none.
+// $src: the profile of "Смотреть из…", '' none. $own: the params of the own input of the screen of the card the reply
+// is to (c: its key; p, n: of "Смотреть из…"), null: no screen of the card (a link, a tile).
 /**
  * @param MelOcCard $c
  * @param MelCardEp $x
  * @param MelOcEp|null $ep
  * @param string $src
+ * @param array<string, string>|null $own
  * @return MelAction
  */
-function mel_oc_ep_watch($c, $x, $ep, $src = '')
+function mel_oc_ep_watch($c, $x, $ep, $src = '', $own = null)
 {
     if ($x['soon'])
-        return mel_oc_soon_msg($x, $c['ui']);
+        return mel_oc_soon_msg($x, $c['ui'], $own);
     $q = $c['meta'] ? mel_cm_req_s($c['meta'], $x['s']) : $x['s'];
     return mel_oc_watch($c, $q, $x['e'], $ep && $ep['q'] === $q && $ep['e'] === $x['e'] ? $ep : null, $src);
 }
 
 // "Смотреть из…" (src_watch) of card $c from the source of profile $src: the list ENTER opens - on episode $x in focus
 // in the row (mel_oc_ep_watch), else of "Смотреть" (a series: of the episode offered, $ep of mel_oc_pick; one not out
-// yet - the message, as ENTER on it in the row).
+// yet - the message, as ENTER on it in the row). $own: as of mel_oc_ep_watch.
 /**
  * @param MelOcCard $c
  * @param MelOcEp|null $ep
  * @param MelCardEp|null $x
  * @param string $src
+ * @param array<string, string>|null $own
  * @return MelAction
  */
-function mel_oc_watch_from($c, $ep, $x, $src)
+function mel_oc_watch_from($c, $ep, $x, $src, $own = null)
 {
     if (!$x && $ep)
         $x = mel_oc_ep($c, $ep['s'], $ep['e']);
     if ($x)
-        return mel_oc_ep_watch($c, $x, $ep, $src);
+        return mel_oc_ep_watch($c, $x, $ep, $src, $own);
     return $ep ? mel_oc_watch($c, $ep['q'], $ep['e'], $ep, $src) : mel_oc_watch($c, -1, -1, null, $src);
 }
 
@@ -2241,7 +2244,8 @@ function mel_oc_src($c, $l, $in)
         return $err;
     $s = mel_catv_in($in, 's');
     $x = $s !== '' ? mel_oc_ep($c, intval($s), intval(mel_catv_in($in, 'e'))) : null;
-    return mel_oc_watch_from($c, $l['ep'], $x, $src);
+    return mel_oc_watch_from($c, $l['ep'], $x, $src,
+        array('c' => mel_catv_in($in, 'c'), 'p' => $src, 'n' => mel_catv_in($in, 'n')));
 }
 
 // "Карточка Дюны" of "Действия" of card $c with a card of the Dune (or an old local one): the native card
@@ -2374,7 +2378,7 @@ function mel_oc_input($in, $control)
             // With a copy on the disk (one not out yet too: its file is there) - the file (C2).
             if ($x && mel_oc_lib_shown($l, $x['s'], $x['e']))
                 return mel_oc_lib_start_ep($key, $c, $l, $x['s'], $x['e']);
-            return $x ? mel_oc_ep_watch($c, $x, $ep) : null;
+            return $x ? mel_oc_ep_watch($c, $x, $ep, '', array('c' => $key)) : null;
         }
         if ($pos['z'] !== 'btn' || !isset($l['btns'][$b]))
             return null;
