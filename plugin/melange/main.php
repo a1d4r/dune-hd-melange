@@ -2662,6 +2662,8 @@ function mel_handle_user_input($in)
         return mel_srv_push($in);
     if ($control === 'gc_ts')
         return mel_ts_menu($in);
+    if ($control === 'gc_ts_cancel')
+        return mel_ts_wait_cancel($in);
     if ($control === 'ts_tick')
         return mel_ts_tick($in);
     if ($control === 'tsl_recent')

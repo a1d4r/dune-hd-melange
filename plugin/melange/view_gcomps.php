@@ -1616,6 +1616,22 @@ function mel_gc_scr_live($st, $raw, $keep = false)
     return array(mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top)), $sel, $top);
 }
 
+// The record (mel_gc_scr_live, the cursor of sel_state $raw) of live list $st for the wait window of a start through
+// TorrServer over it (mel_ts_open): of the list of releases only - null with the online list on the screen, its wait
+// stays the window of the shell.
+/**
+ * @param MelState $st
+ * @param mixed $raw
+ * @return MelOvlScreen|null
+ */
+function mel_gc_ts_scr($st, $raw)
+{
+    if (!empty($st['lp_on']))
+        return null;
+    list($scr) = mel_gc_scr_live($st, $raw);
+    return $scr;
+}
+
 // The record (mel_gc_scr) of the screen of a list gone (replaced, php_server restarted) by its rid $rid: the keys every
 // list has, without those of an episode (they do nothing there) - of the online list when control $control of the
 // input is its own (lp_) -, the sel_state $raw the shell sent.
@@ -2297,7 +2313,7 @@ function mel_gc_input($in)
         Mel::$via = null;
         // A P2P stream (no URL, infoHash only): through TorrServer.
         if (mel_is_p2p($st['rows'][$row]))
-            return mel_ts_open(Mel::$state, $row, 0, $st['rid']);
+            return mel_ts_open(Mel::$state, $row, 0, $st['rid'], false, false, false, mel_gc_ts_scr(Mel::$state, $raw));
         $a = mel_play($st, $st['rows'][$row], 0, null, false, null, $st['rid']);
         if ($a[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
             mel_playing($st['rid'], Mel::$state, $row);
