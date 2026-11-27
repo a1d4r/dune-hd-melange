@@ -1318,7 +1318,7 @@ function mel_lpv_actions($st, $L)
         $list[] = array('id' => 'errors', 'label' => mel_tr($lang, 'lp_errors_menu'), 'icon' => 'k_icon_triangle-alert',
             'menu' => mel_errors_panel(mel_tr($lang, 'lp_errors_menu'), $lang, $errors));
     $groups = $view ? array($view, $list) : array($list);
-    $groups[] = array(mel_gc_setup_item($lang));
+    $groups[] = array(mel_setup_item($lang));
     return array('title' => $tt['actions'], 'groups' => $groups);
 }
 

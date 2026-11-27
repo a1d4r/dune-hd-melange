@@ -20,8 +20,8 @@
 // travels in sel_state.
 // ENTER on a tile does the network (mel_oc_enter: the meta; the rows of posters on r24); the screen
 // is built from memory; from r25 its timer asks the rows of posters (mel_oc_load).
-// A title with copies on the disk has the slot of the overlay of the UI Kit last (kit_ovl.php: the window of the
-// copies over the card), the record of its screen mel_oc_scr.
+// The slot of the overlay of the UI Kit is the last of its components (kit_ovl.php: the panel "Действия" by MENU,
+// mel_oc_menu_open; of a title with copies on the disk the window of them), the record of its screen mel_oc_scr.
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, card_more.php, history.php, playback.php, progress.php,
 // continue.php, view_catalog.php, view_gcomps.php, gcomps.php, playback_lib.php, kit_ovl.php, view_my_list.php; the
 // seasons and the episodes of a series: view_card_series.php; the strip of a row and the frame of the focus:
@@ -1538,9 +1538,8 @@ function mel_oc_window($c, $l, $pos)
     // What the first screen alone shows, over the clip: the arrow of a series is under its bottom.
     $d[] = mel_gc_panel('first', mel_gc_at(1920, 1080, 0, 0), $pos['z'] === 'down' ? array() : $l['first']);
     $d[] = mel_gc_panel('ri', mel_gc_at(1920, MEL_OC_RI_Y - MEL_OC_INK, 0, 0), mel_oc_ri($c, $l, $pos));
-    // The slot of the overlay (the window of the copies) last; the others as before.
-    if (mel_oc_slot($l))
-        $d[] = mel_ovl_slot();
+    // The slot of the overlay (the panel "Действия", the window of the copies) last.
+    $d[] = mel_ovl_slot();
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
         GCompWindowDef::background_url => null,
@@ -1614,6 +1613,23 @@ function mel_oc_folder_view($media_url, $sel_state)
             PluginGCompsFolderView::timer => $timer));
 }
 
+// The keys of the screen of the card of key $key, those of every card: the arrows, ENTER, MENU and the colour keys.
+/**
+ * @param string $key
+ * @return array<string, MelAction>
+ */
+function mel_oc_keys($key)
+{
+    $k = array('c' => $key);
+    return array(
+        GUI_EVENT_KEY_LEFT => mel_input('card_move', $k + array('d' => 'left')),
+        GUI_EVENT_KEY_RIGHT => mel_input('card_move', $k + array('d' => 'right')),
+        GUI_EVENT_KEY_UP => mel_input('card_move', $k + array('d' => 'up')),
+        GUI_EVENT_KEY_DOWN => mel_input('card_move', $k + array('d' => 'down')),
+        GUI_EVENT_KEY_ENTER => mel_input('card_enter', $k),
+        GUI_EVENT_KEY_POPUP_MENU => mel_input('card_menu', $k)) + mel_egg_acts();
+}
+
 // The action map of the screen of card $c ($key) laid out as $l, and its timer (null none): the keys of the card, back
 // from the player of a title with a copy on the disk (a movie, an episode), the timer (card_load, mel_oc_tick) of the
 // rows of posters still asked or of the window of the copies to open (lw_auto). No RETURN: the shell leaves the screen
@@ -1627,17 +1643,11 @@ function mel_oc_folder_view($media_url, $sel_state)
 function mel_oc_acts($key, $c, $l)
 {
     $k = array('c' => $key);
-    $acts = array(
-        GUI_EVENT_KEY_LEFT => mel_input('card_move', $k + array('d' => 'left')),
-        GUI_EVENT_KEY_RIGHT => mel_input('card_move', $k + array('d' => 'right')),
-        GUI_EVENT_KEY_UP => mel_input('card_move', $k + array('d' => 'up')),
-        GUI_EVENT_KEY_DOWN => mel_input('card_move', $k + array('d' => 'down')),
-        GUI_EVENT_KEY_ENTER => mel_input('card_enter', $k),
-        GUI_EVENT_KEY_POPUP_MENU => mel_input('card_menu', $k)) + mel_egg_acts();
+    $acts = mel_oc_keys($key);
     // A movie with a copy on the disk, a series with one of an episode (it plays from this screen; C8): back from the
     // player after STOP only, not between the episodes (as mel_finish_act). No copy: the screen as before 1г, the list
     // has its own.
-    if (mel_oc_slot($l))
+    if (mel_oc_has_lib($l))
     {
         $acts[GUI_EVENT_MENU_PLAYBACK_FINISH] = mel_input('card_finish', $k);
         $acts[GUI_EVENT_MENU_PLAYBACK_FINISH][GuiAction::flags] = GUI_ACTION_FLAG_SKIP_ON_PLAY_RESTART;
@@ -1660,36 +1670,47 @@ function mel_oc_acts($key, $c, $l)
 // as the shell has it (mel_oc_acts and the keys Fav 2 and Fav 1 mel_mlv_keys adds: the close puts the map back whole by
 // change_behaviour; no RETURN), its timer (card_load of the rows of posters still asked, else null; off while the overlay
 // is open: a tick puts the screen anew), its sel_state at the place of the focus. A card not in memory or not shown
-// (no nav), or its screen with no slot of the overlay (mel_oc_slot): null.
+// (no nav): null.
 /**
  * @param string $key
  * @return MelOvlScreen|null
  */
 function mel_oc_scr($key)
 {
-    if (!isset(MelOc::$cards[$key]['nav']) || !mel_oc_slot(MelOc::$cards[$key]['nav']))
+    if (!isset(MelOc::$cards[$key]['nav']))
         return null;
-    $c = MelOc::$cards[$key];
-    $l = $c['nav'];
+    return mel_oc_scr_of($key, MelOc::$cards[$key], MelOc::$cards[$key]['nav']);
+}
+
+// The record of the screen of card $c ($key) laid out as $l (mel_oc_scr; MENU of a card made anew since its screen,
+// with no nav: its layout), at the place of the card (pos).
+/**
+ * @param string $key
+ * @param MelOcCard $c
+ * @param MelOcNav $l
+ * @return MelOvlScreen
+ */
+function mel_oc_scr_of($key, $c, $l)
+{
     list($acts, $timer) = mel_oc_acts($key, $c, $l);
     return array('owner' => $key, 'map' => $acts + mel_mlv_key_acts("card:$key"), 'timer' => $timer,
         'sel' => mel_oc_state($c['pos'], $l));
 }
 
-// The screen of the card of copies $l (its layout or nav) has the slot of the overlay (mel_oc_window), one opens over it
-// (mel_oc_scr): a title with copies on the disk - of a movie or of the episodes of a series.
+// The title of the card of copies $l (its layout or nav) has copies on the disk - of a movie or of the episodes of a
+// series: it plays from its screen (card_finish, mel_oc_acts).
 /**
  * @param array{lib: list<MelLibCopy>, lib_eps: array<string, list<MelLibCopy>>} $l
  * @return bool
  */
-function mel_oc_slot($l)
+function mel_oc_has_lib($l)
 {
     return $l['lib'] || $l['lib_eps'];
 }
 
 // card_load, the timer of the screen of card $key laid out as $l (mel_oc_acts), in this order:
-//   - its window of the copies open (a tick sent before the overlay took the timer off): nothing - the screen put anew
-//     would take the window away; the close gives the timer back, a tick then;
+//   - its overlay open (the panel "Действия", the window of the copies; a tick sent before the overlay took the timer
+//     off): nothing - the screen put anew would take it away; the close gives the timer back, a tick then;
 //   - a window to open (lw_auto, mel_lib_win_card: "Continue" of the native with a copy to choose): the flag off, the
 //     window W2 of those copies over the screen, mode first (mel_lib_win_open) - before the rows of posters (mel_oc_load
 //     puts the screen anew, its nav gone); only of the copies the screen shown has (mel_oc_lib_shown of nav), else
@@ -1907,22 +1928,21 @@ function mel_oc_tile_watch($tile, $lang, $dune, $src)
     return mel_oc_watch_from($c, $ep, null, $src);
 }
 
-// MENU of a movie of card $c ($key) with a card of the Dune: "Отметить просмотренным" / "Снять отметку" (mel_pg_mark_kind;
-// none when watched by its position), card_mark_movie with w on / off (mel_oc_mark_movie).
+// "Действия" of a movie of card $c ($key) with a card of the Dune: "Отметить просмотренным" / "Снять отметку"
+// (mel_pg_mark_kind; none when watched by its position), card_mark_movie with w on / off (mel_oc_mark_movie).
 /**
  * @param string $key
  * @param MelOcCard $c
- * @return list<array<string, mixed>>
+ * @return list<MelKpItem>
  */
 function mel_oc_movie_mark_items($key, $c)
 {
     $w = $c['tile']['type'] === 'movie' && $c['dune'] !== '' ? mel_pg_mark_kind($c['dune'], 'movie') : '';
     if ($w === '')
         return array();
-    return array(array(
-        GuiMenuItemDef::caption => mel_tr($c['ui'], $w === 'on' ? 'cp_mark_on' : 'card_mark_off'),
-        GuiMenuItemDef::icon_url => MEL_OC_ICONS . 'watched_small.png',
-        GuiMenuItemDef::action => mel_input('card_mark_movie', array('c' => $key, 'w' => $w))));
+    return array(array('id' => 'mark', 'label' => mel_tr($c['ui'], $w === 'on' ? 'cp_mark_on' : 'card_mark_off'),
+        'icon' => $w === 'on' ? 'k_icon_circle-check' : 'k_icon_circle-minus',
+        'act' => mel_input('card_mark_movie', array('c' => $key, 'w' => $w))));
 }
 
 // card_mark_movie of MENU of a movie (mel_oc_movie_mark_items, $on: w on) of card $c ($key) -> update_watched_marks of
@@ -2011,17 +2031,17 @@ function mel_oc_menu($lang, $items = array())
         GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
 }
 
-// "Смотреть из…" of MENU of card $c ($key) at place $pos of layout $l (mel_src_watch_item: two ready profiles or more):
-// card_src_menu of the card, of an episode in focus in the row its s and e; none without "Смотреть" (mel_oc_can_watch)
-// and on a strip of posters or of the cast (the title there is another one). A movie with a copy on the disk, a series
-// with one of an episode (C4: "Смотреть" may play a file): of one ready profile too, "Смотреть из «<name>»" to its list
-// at once (mel_src_watch_items_lib).
+// "Смотреть из" of "Действия" of card $c ($key) at place $pos of layout $l (mel_src_watch_kp: two ready profiles or
+// more - its submenu of them): card_src of the card with the profile, of an episode in focus in the row its s and e;
+// none without "Смотреть" (mel_oc_can_watch) and on a strip of posters or of the cast (the title there is another one).
+// A movie with a copy on the disk, a series with one of an episode (C4: "Смотреть" may play a file): of one ready
+// profile too, "Смотреть из «<name>»" to its list at once.
 /**
  * @param string $key
  * @param MelOcCard $c
  * @param MelOcNav $l
  * @param MelOcPos $pos
- * @return list<array<string, mixed>>
+ * @return list<MelKpItem>
  */
 function mel_oc_src_items($key, $c, $l, $pos)
 {
@@ -2030,9 +2050,58 @@ function mel_oc_src_items($key, $c, $l, $pos)
     $p = array('c' => $key);
     if ($pos['z'] === 'row')
         $p += array('s' => strval($pos['s']), 'e' => strval($pos['e']));
-    if ($l['lib'] || $l['lib_eps'])
-        return mel_src_watch_items_lib($c['ui'], 'card_src_menu', 'card_src', $p);
-    return mel_src_watch_item($c['ui'], 'card_src_menu', $p);
+    return mel_src_watch_kp($c['ui'], 'card_src', $p, mel_oc_has_lib($l));
+}
+
+// The panel "Действия" of card $c ($key) at place $pos of layout $l (owner 27.11.2026), three groups: of what
+// "Смотреть" plays - "Смотреть из" (mel_oc_src_items), "Копия на диске" (mel_oc_lib_menu_items); of the title - the
+// marks of the episode in focus in the row (mel_oc_mark_items; of a movie its mark, mel_oc_movie_mark_items),
+// "Карточка Дюны" (mel_oc_dune_items); "Настройки Melange". A group of no item is left out (mel_kp_frame).
+/**
+ * @param string $key
+ * @param MelOcCard $c
+ * @param MelOcNav $l
+ * @param MelOcPos $pos
+ * @return MelKpDesc
+ */
+function mel_oc_actions($key, $c, $l, $pos)
+{
+    return array('title' => mel_tr($c['ui'], 'gc_actions'), 'groups' => array(
+        array_merge(mel_oc_src_items($key, $c, $l, $pos), mel_oc_lib_menu_items($key, $c, $l, $pos)),
+        array_merge($l['kind'] === 'movie' ? mel_oc_movie_mark_items($key, $c) :
+            mel_oc_mark_items($key, $c, $l['prog'], $pos), mel_oc_dune_items($c)),
+        array(mel_setup_item($c['ui']))));
+}
+
+// card_menu (MENU) of card $c ($key) at place $pos (that of the card by now: the actions of the items come with no
+// sel_state of the shell) of layout $l -> the panel "Действия" over its screen (mel_kp_open; mel_oc_actions), the
+// record of the screen by that layout (mel_oc_scr_of).
+/**
+ * @param string $key
+ * @param MelOcCard $c
+ * @param MelOcNav $l
+ * @param MelOcPos $pos
+ * @return MelAction|null
+ */
+function mel_oc_menu_open($key, $c, $l, $pos)
+{
+    return mel_kp_open(mel_oc_scr_of($key, $c, $l), mel_oc_actions($key, $c, $l, $pos));
+}
+
+// card_menu of a screen of no card (key $key: not in memory, no meta): "Настройки Melange" only, in the language of the
+// shell; the record of that screen - the keys of every card (mel_oc_keys), no timer, the sel_state $raw the shell sent.
+/**
+ * @param string $key
+ * @param mixed $raw
+ * @return MelAction|null
+ */
+function mel_oc_menu_lost($key, $raw)
+{
+    mel_log("card: own $key: menu of no card, settings only");
+    $lang = mel_catv_ui_lang();
+    return mel_kp_open(array('owner' => $key, 'map' => mel_oc_keys($key) + mel_mlv_key_acts("card:$key"),
+        'timer' => null, 'sel' => is_string($raw) ? $raw : null),
+        array('title' => mel_tr($lang, 'gc_actions'), 'groups' => array(array(mel_setup_item($lang)))));
 }
 
 // card_finish (GUI_EVENT_MENU_PLAYBACK_FINISH of the screen of card $c, $key; after STOP; the caller drops its overlay,
@@ -2140,20 +2209,18 @@ function mel_oc_src($c, $l, $in)
     return mel_oc_watch_from($c, $l['ep'], $x, $src);
 }
 
-// "Карточка Дюны" of MENU of card $c with a card of the Dune (or an old local one): the native card (file_movie); none
-// without one.
+// "Карточка Дюны" of "Действия" of card $c with a card of the Dune (or an old local one): the native card
+// (file_movie); none without one.
 /**
  * @param MelOcCard $c
- * @return list<array<string, mixed>>
+ * @return list<MelKpItem>
  */
 function mel_oc_dune_items($c)
 {
     if ($c['dune'] === '')
         return array();
-    return array(array(
-        GuiMenuItemDef::caption => mel_tr($c['ui'], 'card_dune'),
-        GuiMenuItemDef::icon_url => MEL_OC_ICONS . 'movies_small.png',
-        GuiMenuItemDef::action => mel_card_open($c['dune'])));
+    return array(array('id' => 'dune', 'label' => mel_tr($c['ui'], 'card_dune'), 'icon' => 'k_icon_film',
+        'act' => mel_card_open($c['dune'])));
 }
 
 // ENTER on the button of the list (mel_oc_buttons, kind list) of card $c ($key) at place $pos of layout $l: the title
@@ -2193,8 +2260,8 @@ function mel_oc_list($key, $c, $l, $pos)
 // card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (mel_oc_mark), card_mark_movie,
 // card_load (the timer, mel_oc_tick), card_src_menu, card_src ("Смотреть из…", mel_oc_src), card_lib_copies,
 // card_lib_copy (the copies on the disk, mel_oc_lib_input), card_finish (back from the player, mel_oc_finish) of the
-// card c. MENU: "Смотреть из…" (mel_oc_src_items), "Копия на диске…" (mel_oc_lib_menu_items), the marks of the episode in focus in the
-// row (of a movie: its mark, mel_oc_movie_mark_items), "Карточка Дюны" (mel_oc_dune_items), then "Settings". The keys: the place of mel_oc_next by change_gcomps, null at an edge; the layout of the screen shown
+// card c. MENU: the panel "Действия" over the card (mel_oc_menu_open; of no card mel_oc_menu_lost); under the open
+// overlay of the card its arrows, ENTER and MENU are not done. The keys: the place of mel_oc_next by change_gcomps, null at an edge; the layout of the screen shown
 // (nav), else laid out anew. ENTER on a button: "Watch" - a movie with a copy on the disk: the file (mel_oc_lib_start),
 // the episode offered with one: its file (mel_oc_lib_start_ep), else the list of the episode offered, an
 // episode not out yet - the focus to it in the row, the button of the list - into it or out (mel_oc_list);
@@ -2214,9 +2281,16 @@ function mel_oc_list($key, $c, $l, $pos)
 function mel_oc_input($in, $control)
 {
     $key = mel_catv_in($in, 'c');
+    // Under the open overlay of the card (the panel "Действия", the window of the copies: a key sent before its map
+    // was applied): none, nothing changed - the panel was built for this place of the card.
+    if (in_array($control, array('card_move', 'card_enter', 'card_menu'), true) && mel_ovl_open_on($key))
+    {
+        mel_log("card: own $key: $control under the overlay, none");
+        return null;
+    }
     $c = mel_oc_get($key);
     if ($control === 'card_menu' && !$c)
-        return mel_oc_menu(mel_catv_ui_lang());
+        return mel_oc_menu_lost($key, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     if (!$c)
         return in_array($control, array('card_enter', 'card_trailer', 'card_src'), true) ? mel_error('cat_outdated') : null;
     if ($control === 'card_mark')
@@ -2246,9 +2320,7 @@ function mel_oc_input($in, $control)
     if ($control === 'card_load')
         return mel_oc_tick($key, $l);
     if ($control === 'card_menu')
-        return mel_oc_menu($c['ui'], array_merge(mel_oc_src_items($key, $c, $l, $pos), mel_oc_lib_menu_items($key, $c, $l, $pos),
-            $l['kind'] === 'movie' ?
-            mel_oc_movie_mark_items($key, $c) : mel_oc_mark_items($key, $c, $l['prog'], $pos), mel_oc_dune_items($c)));
+        return mel_oc_menu_open($key, MelOc::$cards[$key], $l, $pos);
     $j = is_string($raw) ? json_decode($raw, true) : null;
     $rs = implode(',', $l['rows']);
     if (is_array($j) && isset($j['rs']) && is_string($j['rs']) && $j['rs'] !== $rs)

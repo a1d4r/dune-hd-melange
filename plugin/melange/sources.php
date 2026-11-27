@@ -92,6 +92,34 @@ function mel_src_item($lang, $control, $params, $now = '', $lp_only = false)
         'value' => MelKit::panel_value($label, mel_src_name($now)), 'menu' => $menu);
 }
 
+// The item of the sources of the panel "Действия" of the own card, to $control of $params with p (the id of a profile)
+// and n (its name for the dialog): two ready profiles or more - "Смотреть из" with the submenu of them (mel_src_panel
+// under this title; none picked: no list is open yet); one, of a title with a copy on the disk ($lib: "Смотреть" plays
+// the file; owner 18.11.2026) - "Смотреть из «<name>»", its list at once; else none.
+/**
+ * @param string $lang
+ * @param string $control
+ * @param array<string, string> $params
+ * @param bool $lib
+ * @return list<MelKpItem>
+ */
+function mel_src_watch_kp($lang, $control, $params, $lib)
+{
+    $ready = mel_src_ready();
+    if ($lib && count($ready) === 1)
+    {
+        $p = $ready[0];
+        return array(array('id' => 'src', 'label' => str_replace('{name}', $p['name'], mel_tr($lang, 'src_watch_one')),
+            'icon' => 'k_icon_layers',
+            'act' => mel_input($control, array_merge($params, array('p' => $p['id'], 'n' => $p['name'])))));
+    }
+    $menu = mel_src_panel($lang, $control, $params);
+    if (!$menu)
+        return array();
+    $menu['title'] = mel_tr($lang, 'src_watch');
+    return array(array('id' => 'src', 'label' => $menu['title'], 'icon' => 'k_icon_layers', 'menu' => $menu));
+}
+
 // The popup menu of the ready profiles in their order, Lampac with its own icon, each to $control of $params with p (its
 // id) and n (its name for the dialog); the one of id $now "<name> · сейчас" and selected ('' none: the first selected);
 // $lp_only - those of Lampac only (mel_src_ready). None ready: null.

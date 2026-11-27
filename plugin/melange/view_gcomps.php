@@ -2091,19 +2091,8 @@ function mel_gc_actions($st, $row)
         $list[] = array('id' => 'errors', 'label' => mel_tr($lang, 'errors_menu'), 'icon' => 'k_icon_triangle-alert',
             'menu' => mel_errors_panel(mel_tr($lang, 'errors_menu'), $lang, $st['errors']));
     $groups = $one ? array($one, $list) : array($list);
-    $groups[] = array(mel_gc_setup_item($lang));
+    $groups[] = array(mel_setup_item($lang));
     return array('title' => $tt['actions'], 'groups' => $groups);
-}
-
-// The item "Настройки Melange" of the panel in language $lang: the settings screen.
-/**
- * @param string $lang
- * @return MelKpItem
- */
-function mel_gc_setup_item($lang)
-{
-    return array('id' => 'setup', 'label' => mel_tr($lang, 'setup_melange'), 'icon' => 'k_icon_settings',
-        'act' => mel_setup_open_act());
 }
 
 // gc_menu (MENU) of a list -> the panel "Действия" over its screen (mel_kp_open; mel_gc_actions), built for the row
@@ -2126,7 +2115,7 @@ function mel_gc_menu($in)
         $rid = isset($in->rid) && is_string($in->rid) ? $in->rid : '';
         $tt = mel_gc_text($lang === 'ru' ? 'ru' : 'en');
         return mel_kp_open(mel_gc_scr($rid, mel_gc_keys($rid, false), is_string($raw) ? $raw : null),
-            array('title' => $tt['actions'], 'groups' => array(array(mel_gc_setup_item($lang)))));
+            array('title' => $tt['actions'], 'groups' => array(array(mel_setup_item($lang)))));
     }
     list($sel, $top) = mel_gc_pos($st, $raw);
     Mel::$state['gc'] = array($sel, $top);

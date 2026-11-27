@@ -718,8 +718,8 @@ function mel_cm_eps_before($m, $s, $e, $max = 0)
     return $out;
 }
 
-// The items of MENU of an episode of series card $c ($key) with the focus at $pos in the row and
-// the progress $prog of the screen, before "Settings": "Отметить просмотренной" (not watched, out),
+// The items of "Действия" of an episode of series card $c ($key) with the focus at $pos in the row and
+// the progress $prog of the screen: "Отметить просмотренной" (not watched, out),
 // "Снять отметку" (watched by a mark: by the position no mark takes it off), "Отметить предыдущие"
 // (an episode out before it). None elsewhere, without the meta or a card of the Dune (no history).
 /**
@@ -727,7 +727,7 @@ function mel_cm_eps_before($m, $s, $e, $max = 0)
  * @param MelOcCard $c
  * @param array<string, array{float, float, bool}> $prog
  * @param MelOcPos $pos
- * @return list<array<string, mixed>>
+ * @return list<MelKpItem>
  */
 function mel_oc_mark_items($key, $c, $prog, $pos)
 {
@@ -740,14 +740,13 @@ function mel_oc_mark_items($key, $c, $prog, $pos)
         $w = $x['soon'] ? '' : 'on';
     else if (!mel_wh_full($pr[0], $pr[1]))
         $w = 'off';
+    $icons = array('on' => 'k_icon_circle-check', 'off' => 'k_icon_circle-minus', 'prev' => 'k_icon_check-check');
     $out = array();
     foreach (array($w, mel_oc_prev_eps($c, $pos['s'], $pos['e'], 1) ? 'prev' : '') as $k)
     {
         if ($k !== '')
-            $out[] = array(
-                GuiMenuItemDef::caption => mel_tr($c['ui'], "card_mark_$k"),
-                GuiMenuItemDef::icon_url => MEL_OC_ICONS . 'watched_small.png',
-                GuiMenuItemDef::action => mel_input('card_mark', array('c' => $key, 's' => strval($pos['s']),
+            $out[] = array('id' => "mark_$k", 'label' => mel_tr($c['ui'], "card_mark_$k"), 'icon' => $icons[$k],
+                'act' => mel_input('card_mark', array('c' => $key, 's' => strval($pos['s']),
                     'e' => strval($pos['e']), 'w' => $k)));
     }
     return $out;

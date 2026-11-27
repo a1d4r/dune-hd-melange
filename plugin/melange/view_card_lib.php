@@ -448,7 +448,7 @@ function mel_oc_lib_on_disk($lib_eps, $s)
     return $n;
 }
 
-// "Копия на диске…" of MENU of card $c ($key) at place $pos of layout $l: a movie with two copies on the disk or more -
+// "Копия на диске" of "Действия" of card $c ($key) at place $pos of layout $l: a movie with two copies on the disk or more -
 // card_lib_copies (the window W2 of them, mel_oc_lib_input); a series - of the episode in focus in the row, else of
 // "Смотреть" (the episode offered, $l['ep']) with two copies or more, card_lib_copies with its s, e (the window W2 of
 // it). None on a strip of posters or of the cast.
@@ -457,7 +457,7 @@ function mel_oc_lib_on_disk($lib_eps, $s)
  * @param MelOcCard $c
  * @param MelOcNav $l
  * @param MelOcPos $pos
- * @return list<array<string, mixed>>
+ * @return list<MelKpItem>
  */
 function mel_oc_lib_menu_items($key, $c, $l, $pos)
 {
@@ -474,17 +474,15 @@ function mel_oc_lib_menu_items($key, $c, $l, $pos)
     }
     else if (count($l['lib']) < 2)
         return array();
-    return array(array(
-        GuiMenuItemDef::caption => mel_tr($c['ui'], 'lib_copy_menu'),
-        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
-        GuiMenuItemDef::action => mel_input('card_lib_copies', $p)));
+    return array(array('id' => 'lib', 'label' => mel_tr($c['ui'], 'lib_copy_menu'), 'icon' => 'k_icon_files',
+        'act' => mel_input('card_lib_copies', $p)));
 }
 
 // The start of a copy on the disk of the movie of card $c ($key) of layout $l (C2-C4, C11 of the spec): its copies read
 // anew (a share may be gone since the screen; mel_lib_copies), the copy and the place by the history of the card
 // (mel_lib_place). The copy of id $k chosen in the window of the copies ('' - "Смотреть": the copy of the record, of
 // its mirrors the first there; none - the copies by mel_lib_start: one plays, several - the window W2 of them over the
-// screen, mode first (mel_lib_win_open; none - the screen shown has no slot of the overlay: nothing, logged there), none
+// screen, mode first (mel_lib_win_open; none - no screen of the card shown: nothing, logged there), none
 // there - mel_lib_gone; the disk did not answer - with "Повторить": this start again, card_enter of the card or
 // card_lib_copy of the copy). Played (card_finish after the player) only when its file starts, as of an episode.
 /**
@@ -541,8 +539,8 @@ function mel_oc_lib_retry_act($key, $k, $s = -1, $e = -1)
 // "▶ Смотреть / Продолжить"): the copy and the place by the history of H (mel_lib_ep_ctx -> mel_lib_ep_place). Then
 // mel_lib_start (of the mirrors of a record the copy of F first): the file there - vod_play of the playlist of its
 // season (mel_lib_play), played (card_finish after the player); several left or none to take - the window of the copies
-// of the episode over the screen (mel_lib_win_open, mode first; its "· сейчас" mel_lib_win_cur; none - the screen has no
-// slot of the overlay: nothing, logged there); none there - mel_lib_gone of the episode (the disk did not answer - with
+// of the episode over the screen (mel_lib_win_open, mode first; its "· сейчас" mel_lib_win_cur; none - no
+// screen of the card shown: nothing, logged there); none there - mel_lib_gone of the episode (the disk did not answer - with
 // "Повторить", mel_oc_lib_retry_act). No episode on the disk now: as
 // none there. No movie of the card: null.
 /**
@@ -584,8 +582,8 @@ function mel_oc_lib_start_ep($key, $c, $l, $s, $e, $k = '')
 
 // card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the id of the copy of the window of the copies; from:
 // first - of "Смотреть", menu - of MENU, retry - of "Повторить", mel_oc_lib_retry_act) of card $c ($key) of layout
-// $l: of its movie, of episode s, e of its series (C4, spec §7.5; both given, numbers). Only of a title (an episode) with copies on the screen shown (mel_oc_lib_shown: its
-// slot of the overlay; not by the copies now). MENU: the copies read anew (of an episode mel_oc_lib_eps), the window W2
+// $l: of its movie, of episode s, e of its series (C4, spec §7.5; both given, numbers). Only of a title (an episode) with copies on the screen shown (mel_oc_lib_shown;
+// not by the copies now). MENU: the copies read anew (of an episode mel_oc_lib_eps), the window W2
 // of them over the screen, mode menu (mel_lib_win_open: "· сейчас" and the cursor by mel_lib_win_cur; none - on the
 // first); none now - lib_gone, of an episode its message (mel_lib_gone). A copy (k, of the window): mel_oc_lib_start,
 // of an episode mel_oc_lib_start_ep - from the place of mel_lib_place (of an episode the latest record of it of any

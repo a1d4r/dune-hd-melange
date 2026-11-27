@@ -50,6 +50,17 @@ function mel_setup_open_act($from = '')
             PluginOpenFolderActionData::caption => $cat ? '%tr%setup_menu' : '%tr%plugin_caption'));
 }
 
+// The item "Настройки Melange" of a side panel "Действия" (kit_panel.php) in language $lang: the settings screen.
+/**
+ * @param string $lang
+ * @return MelKpItem
+ */
+function mel_setup_item($lang)
+{
+    return array('id' => 'setup', 'label' => mel_tr($lang, 'setup_melange'), 'icon' => 'k_icon_settings',
+        'act' => mel_setup_open_act());
+}
+
 // Params of the inputs of the settings screen $url, nothing kept in memory (a restart
 // of php_server under the QR dialog): 'from' - the screen of the catalog to read again
 // after a save; 'first' - the screen is that catalog itself (a first run).
