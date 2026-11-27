@@ -689,8 +689,8 @@ function mel_lib_resume_go($mv, $copies, $first, $first_pos, $pos, $lang, $ep = 
 // OK, the card stays): $why 'slow' - the disk did not answer in time, else the file is gone. Of episode S$q E$e ($e >=
 // 1, "Continue" of the native): the same of the episode, in the words of the dialog of lib_next. 'slow' with $retry (the
 // own card: its start again; "Continue": its play_action again) - a dialog of the same text, "Повторить" ($retry after
-// the dialog closed) first, then OK (owner 21.11.2026: the check wakes a disk asleep). All of it here: another look of
-// it is one edit.
+// the dialog closed) first, then "Отмена" (owner 21.11.2026: the check wakes a disk asleep; 27.11.2026: over the own
+// card the dialog of ours, the mark of a warning, mel_ask). All of it here: another look of it is one edit.
 /**
  * @param string $why
  * @param string $lang
@@ -705,8 +705,9 @@ function mel_lib_gone($why, $lang = '', $q = -1, $e = -1, $retry = null)
     {
         $k = $e < 1 ? 'lib_slow' : 'lib_next_slow';
         mel_log("error: $k, with retry");
-        return mel_dialog(mel_tr($lang, $k, $e < 1 ? '' : mel_se($q, $e)), array(),
-            array(mel_tr($lang, 'cat_retry') => mel_close_and($retry), 'OK' => mel_close_and(null)));
+        return mel_ask(mel_tr($lang, $k, $e < 1 ? '' : mel_se($q, $e)), array(), 'k_icon_triangle-alert', 'warn',
+            array(mel_btn(mel_tr($lang, 'cat_retry'), 'k_icon_refresh-cw', $retry),
+                mel_btn(mel_tr($lang, 'ks_cancel'), 'k_icon_x')));
     }
     if ($e < 1)
         return mel_error($why === 'slow' ? 'lib_slow' : 'lib_gone');
