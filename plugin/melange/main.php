@@ -1537,6 +1537,20 @@ function mel_errors_shown($errors)
     return Mel::$settings['source_errors'] && $errors['lines'];
 }
 
+// The reasons as a submenu of the side panel «$title» (the item "Ошибки аддонов" of the list of releases, "Ошибки
+// балансеров" of the online list): its texts with no cursor (kit_panel.php, a text), the first MEL_ERRORS_MAX and
+// "and N more" as the window (mel_errors_dialog: that one is of a screen with no panel, mel_errors_only_dialog).
+/**
+ * @param string $title
+ * @param string $lang
+ * @param MelErrors $errors
+ * @return MelKpSubDesc
+ */
+function mel_errors_panel($title, $lang, $errors)
+{
+    return array('title' => $title, 'text' => mel_errors_rows($lang, $errors, MEL_ERRORS_MAX));
+}
+
 // A reply of error streams only, with the setting on -> the window of its reasons
 // instead of err_no_streams; else null. $res: the error of mel_fetch, or another
 // one without 'errors'.
@@ -2506,8 +2520,6 @@ function mel_handle_user_input($in)
         return mel_chosen($in);
     if ($control === 'gc_menu')
         return mel_gc_menu($in);
-    if ($control === 'gc_errors')
-        return mel_gc_errors($in);
     if ($control === 'gc_dl')
         return mel_download($in);
     if ($control === 'gc_push')

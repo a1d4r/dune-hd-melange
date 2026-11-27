@@ -1273,7 +1273,8 @@ function mel_lpv_finish($st)
 //     "Свернуть все" (a balancer of 2 rows; as the green key), "Сортировать по качеству" / "Порядок как в Балансерах" (a
 //     list with rows; as the yellow key);
 //   of the list: "Обновить список" (mel_lpv_refresh), an episode: "Выбрать серию", "Источник" (two ready profiles, of a
-//     card of no IMDb and no TMDB, mel_rel_id, those of Lampac; mel_src_item), "Ошибки балансеров" (reasons of the view);
+//     card of no IMDb and no TMDB, mel_rel_id, those of Lampac; mel_src_item), "Ошибки балансеров" (reasons of the view; a submenu,
+//     mel_errors_panel);
 //   "Настройки Melange".
 /**
  * @param MelState $st
@@ -1315,7 +1316,7 @@ function mel_lpv_actions($st, $L)
     $errors = mel_lpv_errors_of($st);
     if ($errors['lines'])
         $list[] = array('id' => 'errors', 'label' => mel_tr($lang, 'lp_errors_menu'), 'icon' => 'k_icon_triangle-alert',
-            'act' => mel_gc_act('lp_errors', $rid));
+            'menu' => mel_errors_panel(mel_tr($lang, 'lp_errors_menu'), $lang, $errors));
     $groups = $view ? array($view, $list) : array($list);
     $groups[] = array(mel_gc_setup_item($lang));
     return array('title' => $tt['actions'], 'groups' => $groups);
@@ -1670,8 +1671,6 @@ function mel_lpv_input($in, $control)
     }
     if ($control === 'lp_chosen')
         return mel_lpv_chosen($in, $st);
-    if ($control === 'lp_errors')
-        return mel_errors_dialog(mel_tr($st['lang'], 'lp_errors_menu'), $st['lang'], mel_lpv_errors_of($st));
     if ($control === 'lp_refresh')
         return mel_lpv_refresh($st);
     if ($control === 'lp_srcs_done')

@@ -2045,7 +2045,7 @@ function mel_gc_main_menu($st, $now)
 //   of the list: "Сортировка" (always; a submenu, mel_gc_sort_menu) and "Источник" (two ready profiles, of a card of
 //     no IMDb and no TMDB, mel_rel_id, those of Lampac; mel_src_item) with their value on the right, "Обновить
 //     список" (mel_refresh), an episode: "Выбрать серию" (mel_choose), copies of Real-Debrid and TorBox in the list:
-//     "Сменить основной Debrid" (a submenu, mel_gc_main_menu), source errors of the reply if shown (mel_gc_errors);
+//     "Сменить основной Debrid" (a submenu, mel_gc_main_menu), source errors of the reply if shown (a submenu, mel_errors_panel);
 //   "Настройки Melange".
 /**
  * @param MelState $st
@@ -2089,7 +2089,7 @@ function mel_gc_actions($st, $row)
             'menu' => mel_gc_main_menu($st, $main[0]));
     if (mel_errors_shown($st['errors']))
         $list[] = array('id' => 'errors', 'label' => mel_tr($lang, 'errors_menu'), 'icon' => 'k_icon_triangle-alert',
-            'act' => mel_gc_act('gc_errors', $rid));
+            'menu' => mel_errors_panel(mel_tr($lang, 'errors_menu'), $lang, $st['errors']));
     $groups = $one ? array($one, $list) : array($list);
     $groups[] = array(mel_gc_setup_item($lang));
     return array('title' => $tt['actions'], 'groups' => $groups);
@@ -2134,22 +2134,6 @@ function mel_gc_menu($in)
     // The items of a release take its row; on the line of the group (-1) none of them.
     return mel_kp_open(mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top)),
         mel_gc_actions($st, mel_gc_row_of(mel_gc_lv($st), $sel)));
-}
-
-// gc_errors (MENU "Source errors") of a live list -> the window of its reasons.
-/**
- * @param stdClass $in
- * @return MelAction
- */
-function mel_gc_errors($in)
-{
-    $st = Mel::$state;
-    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
-    {
-        mel_log('source errors: not a live list');
-        return mel_error('err_list_expired');
-    }
-    return mel_errors_dialog(mel_tr($st['lang'], 'errors_menu'), $st['lang'], $st['errors']);
 }
 
 // ENTER on the line of the group of the tier of list $st (lines $lv): folded - unfolded, the cursor on its first row;
