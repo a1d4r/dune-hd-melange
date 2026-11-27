@@ -31,6 +31,7 @@ On the Dune:
 | "The Melange server did not create the config" | try again in a minute; if that fails, set up from a phone ([Settings page on a phone](phone-page.en.md)) |
 | "The config was created but not saved on the Dune", "The Melange settings file cannot be read: set up from a phone" | set up from a phone; if it happens again, send the [log](#log) |
 | "TorrServer does not answer. The catalog and search work; to watch, install and start the TorrServe app on the Dune" | Melange is set up, but torrents will not play until TorrServe is running ([Torrents and TorrServer](torrserver.en.md)) |
+| "TorrServe Silo is not supported: install TorrServe MatriX" | Melange is set up, but torrents will not play with TorrServe Silo: install TorrServe MatriX ([Quick start](start.en.md#manually)) |
 | "The Dune's network IP address was not found" | the Dune is not on the network: check its connection to the router |
 
 ## The settings page does not open
@@ -100,6 +101,7 @@ First press **"Check"** in the "TorrServer" section of the settings page ([Torre
 | "No answer within 3 s", "No answer" | check the address and that the device with TorrServer is on |
 | "It answered HTTP …: not a TorrServer?" | another program is at this address: check the port |
 | "Not a TorrServer MatriX (an old 1.1?)" | update TorrServer to MatriX |
+| "TorrServe Silo is not supported: install TorrServe MatriX" | TorrServe Silo answers at this address, and Melange does not work with it: install TorrServe MatriX ([Quick start](start.en.md#manually)) |
 | "TorrServer asks for a login and password" | enter them in "Login" and "Password" |
 | "TorrServer did not accept the login or password" | check the login and password |
 | "TorrServer … is responding, but /settings: …" | TorrServer works, but its settings could not be read; you can still watch |
@@ -113,6 +115,7 @@ Messages on the Dune when starting playback:
 | "No file list within a minute: the release has few seeders", "No file list, TorrServer closed the release: few seeders" | choose a release with more seeders |
 | "The release has no file for this episode", "The release has no video" | choose another release |
 | "TorrServer did not accept the release", "The reply is not from TorrServer MatriX" | check TorrServer with the "Check" button |
+| "TorrServe Silo is not supported: install TorrServe MatriX" (the "On TorrServer" section says the same) | install TorrServe MatriX ([Quick start](start.en.md#manually)) |
 | "Torrents are disabled in the settings" | the "No torrents" setting is on ([Advanced](advanced-options.en.md)) |
 
 **Episodes take long to start**: turn off "Skip intro and credits" ([Advanced](advanced-options.en.md)).
