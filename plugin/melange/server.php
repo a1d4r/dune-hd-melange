@@ -248,7 +248,8 @@ function mel_syn_created($r)
 // check. The folder: the category, else the default one of Download Station
 // (getconfig; no answer of the API to it -> srv_err_reply), else nothing is
 // sent. Create of DownloadStation2 (its values are JSON), of v1 when there is
-// none or it does not know the method (102, 103, 104).
+// none or it does not know the method (102, 103, 104); one of the two is in
+// $apis (mel_syn_add).
 function mel_syn_send($srv, $apis, $sid, $magnet, $hash, $end)
 {
     $t = microtime(true);
@@ -295,8 +296,6 @@ function mel_syn_send($srv, $apis, $sid, $magnet, $hash, $end)
         if (!$v1 || !in_array($r['api_err'], array(102, 103, 104), true))
             return mel_syn_created($r);
     }
-    if (!$v1)
-        return array('failed', 'srv_err_reply', 'no Download Station API');
     $t = microtime(true);
     $r = mel_syn_api($srv, $apis, 'SYNO.DownloadStation.Task', min(3, $apis['SYNO.DownloadStation.Task']['max']), 'create',
         array('uri' => $magnet, 'destination' => $dest), $sid, MEL_SRV_CONNECT, mel_syn_left($end));
@@ -324,6 +323,11 @@ function mel_syn_add($srv, $magnet, $hash)
     }
     if (!isset($apis['SYNO.API.Auth']))
         return array('failed', 'srv_err_reply', 'no SYNO.API.Auth');
+    // A DSM without the package (or with it stopped) has no API of the tasks, and refuses the login to its session
+    // with 402, as of a user without the right: no login.
+    if (!isset($apis['SYNO.DownloadStation.Task']) && (!isset($apis['SYNO.DownloadStation2.Task']) ||
+        $apis['SYNO.DownloadStation2.Task']['max'] < 2))
+        return array('failed', 'srv_err_reply', 'no Download Station API');
     $t = microtime(true);
     list($r, $sid) = mel_syn_login($srv, $apis, MEL_SRV_CONNECT, mel_syn_left($end));
     mel_syn_log('login', $r, $t);

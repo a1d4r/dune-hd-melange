@@ -263,6 +263,7 @@ function mel_cgi_servers($servers)
         'The web UI address; leave the login empty if none is needed.') . '</p><p class="hint wn">' .
         mel_cgi_l('Не проверяйте с неверным паролем подряд — qBittorrent блокирует Дюну.',
         'Do not check with a wrong password repeatedly: qBittorrent bans the Dune.') . '</p>';
+    $labels = mel_cgi_l('Метки через запятую (необязательно)', 'Labels, comma-separated (optional)');
     for ($n = 1; $n <= MEL_SERVERS_MAX; $n++)
     {
         $v = isset($servers[$n - 1]) ? $servers[$n - 1] : array();
@@ -291,8 +292,7 @@ function mel_cgi_servers($servers)
             // Download Station has no tags: hidden for it (by the script too, on a change of the client), the value kept.
             '<div class="srvtags"' . ($type === 'syn' ? ' hidden' : '') . '>' . mel_cgi_srv_plain($f['tags'], array(
                 'qbt' => mel_cgi_l('Теги через запятую (необязательно)', 'Tags, comma-separated (optional)'),
-                'tr' => $labels = mel_cgi_l('Метки через запятую (необязательно)', 'Labels, comma-separated (optional)'),
-                'syn' => $labels), $v['tags'], '', $type) . '</div>' .
+                'tr' => $labels, 'syn' => $labels), $v['tags'], '', $type) . '</div>' .
             mel_cgi_select($f['cache'], mel_cgi_l('Для кэша', 'For the cache of'), mel_cgi_opts(array_merge(
                 array('' => mel_cgi_l('Не из кэша', 'Not from a cache')), mel_server_caches())), $v['cache']) .
             '<button type="button" class="chk srvchk">' . mel_cgi_l('Проверить', 'Check') .
