@@ -2527,8 +2527,10 @@ function mel_dlg_simple($a)
 function mel_dlg_of($in, $control, $a)
 {
     $w = Mel::$shell_win ? null : mel_dlg_simple($a);
-    $scr = $w ? mel_scr_of($in, $control) : null;
-    $d = $scr && $w ? mel_dlg_error($scr, $w[2], $w[0], $w[1]) : null;
+    if (!$w)
+        return $a;
+    $scr = mel_scr_of($in, $control);
+    $d = $scr ? mel_dlg_error($scr, $w[2], $w[0], $w[1]) : null;
     return $d ? $d : $a;
 }
 
