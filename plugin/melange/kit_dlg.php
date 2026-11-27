@@ -30,7 +30,9 @@
 //   (2019) · 4K · Remux · 24.2 ГБ»; '' none), stage, count, share, foot_l, foot_r, foot_tone (as a reply), elapsed (the
 //   time by the title, {sec} the seconds: «прошло {sec} с»; '' none), buttons (1 to 3, each array('id', 'label',
 //   'icon', 'act', 'cancel': RETURN presses it)), focus, cancel (run after the close by RETURN with no cancel button,
-//   none: the close only), tick (the name of the function), data, late: at late['sec'] s (default MEL_WAIT_LATE),
+//   none: the close only), tick (the name of the function), data, ms (the period of its ticks, default
+//   MEL_WAIT_TICK_MS: a tick that is a request itself comes sooner; the time by the title and late are by the clock,
+//   not by the ticks), late: at late['sec'] s (default MEL_WAIT_LATE),
 //   once, its icon, tone, buttons («Показать найденное» before «Отмена») and focus (default: the button of the same id,
 //   else the first), its text (only the wait screen of kit_scr.php shows it, in the place of the stage; the window has
 //   no long text: owner 27.11.2026). The foot is there by the description, for the whole wait: foot true, or either
@@ -356,8 +358,9 @@ function mel_wait_timer($ms = MEL_WAIT_TICK_MS)
     return array(GuiTimerDef::delay_ms => $ms);
 }
 
-// The state of a new wait of description $w (MelWaitDesc, see above), its ticks every $ms (the overlay
-// MEL_WAIT_TICK_MS; the wait screen of kit_scr.php MEL_KS_TICK_MS), started now. No function tick: null, logged.
+// The state of a new wait of description $w (MelWaitDesc, see above), its ticks every ms of it, with none every $ms
+// (the overlay MEL_WAIT_TICK_MS; the wait screen of kit_scr.php MEL_KS_TICK_MS), started now. No function tick: null,
+// logged.
 /**
  * @param array<string, mixed> $w
  * @param int $ms
@@ -382,7 +385,8 @@ function mel_wait_new($w, $ms = MEL_WAIT_TICK_MS)
         'elapsed' => mel_dlg_str($w, 'elapsed'), 'buttons' => $bs,
         'cur' => mel_dlg_focus(isset($w['focus']) ? $w['focus'] : 0, count($bs)), 'cancel' => mel_dlg_act($w, 'cancel'),
         'tick' => $tick,
-        'data' => isset($w['data']) ? $w['data'] : null, 't0' => time(), 'sec' => 0, 'ms' => $ms, 'late' => $late,
+        'data' => isset($w['data']) ? $w['data'] : null, 't0' => time(), 'sec' => 0,
+        'ms' => isset($w['ms']) && is_int($w['ms']) && $w['ms'] > 0 ? $w['ms'] : $ms, 'late' => $late,
         'late_at' => $late && isset($late['sec']) && is_int($late['sec']) ? $late['sec'] : MEL_WAIT_LATE,
         'late_text' => null);
 }
