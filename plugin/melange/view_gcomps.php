@@ -792,6 +792,26 @@ function mel_gc_row_badges($b)
     return $cols;
 }
 
+// The facts of row $i of list $st in one line, for a window about it (the wait of a start through TorrServer, the
+// owner 27.11.2026): the title with the year (mel_gc_title; no «S1 E1» of an episode), the words of the plates of the
+// row (mel_gc_row_badges, mel_badge_word: resolution, source, picture, sound), its size - «Джентльмены (2019) · 4K ·
+// Remux · Dolby Vision · Atmos · 24.2 ГБ»; what the row does not have is left out. Not cut here: the window does.
+/**
+ * @param MelState $st
+ * @param int $i
+ * @return string
+ */
+function mel_gc_facts($st, $i)
+{
+    $r = $st['rows'][$i];
+    list($title) = mel_gc_title($st);
+    $parts = array($title);
+    foreach (mel_gc_row_badges($r['badges']) as $id)
+        $parts[] = mel_badge_word($id);
+    $parts[] = $r['size'] > 0 ? mel_size_str($r['size'], mel_gc_lang($st)) : '';
+    return implode(" \xC2\xB7 ", array_values(array_filter($parts, 'strlen')));
+}
+
 // Column x and width for this list, each by its widest value; empty columns
 // take no room; the icon column as wide as the plate of the cache, wider only
 // for wider seeders. A column of the badges for each part (the plate of every

@@ -363,6 +363,29 @@ function mel_badge_senior($id)
     return $id;
 }
 
+// The word of the plate b2 of badge id $id (the senior part of an id of mel_badges, mel_badge_senior) as the viewer
+// reads it on the plate, for a line of text about a row (the facts of the wait window of TorrServer, mel_gc_facts):
+// every id with a glyph k_glyph_* of a row has one, the same in every language; «Dolby Vision» in full (the plate has
+// the Dolby sign before «Vision»: the owner 27.11.2026). No such plate: ''.
+/**
+ * @param string $id
+ * @return string
+ */
+function mel_badge_word($id)
+{
+    static $t = array('4k' => '4K', '1440p' => '2K', '1080p' => 'FHD', '720p' => 'HD', '576p' => 'SD', '480p' => 'SD',
+        '360p' => 'SD', '240p' => 'SD', '144p' => 'SD',
+        'remux' => 'Remux', 'bluray' => 'BluRay', 'bdrip' => 'BDRip', 'web-dl' => 'WebDL', 'webrip' => 'WebRip',
+        'hdrip' => 'HDRip', 'hc-hdrip' => 'HCHDRip', 'dvdrip' => 'DVDRip', 'hdtv' => 'HDTV', 'cam' => 'CAM', 'ts' => 'TS',
+        'tc' => 'TC', 'scr' => 'DVDScr',
+        'dolby-vision' => 'Dolby Vision', 'hdr10-plus' => 'HDR10+', 'hdr10' => 'HDR10', 'hdr' => 'HDR', 'hlg' => 'HLG',
+        '10bit' => '10bit',
+        'dolby-atmos' => 'Atmos', 'dolby-truehd' => 'TrueHD', 'dolby-digital-plus' => 'Digital+',
+        'dolby-digital' => 'Digital', 'dts-x' => 'DTS:X', 'dts-hd-ma' => 'DTS-HD', 'dts-hd' => 'DTS-HD',
+        'dts-es' => 'DTS-ES', 'dts' => 'DTS', 'flac' => 'FLAC', 'pcm' => 'PCM', 'opus' => 'OPUS', 'aac' => 'AAC');
+    return isset($t[$id]) ? $t[$id] : '';
+}
+
 // Badge id of mel_badges as text, for the card: "DV · HDR10", "TrueHD Atmos".
 /**
  * @param string $id
