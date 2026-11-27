@@ -774,7 +774,7 @@ function mel_ts_shown_addr()
 // "Could not open via TorrServer": the reason, its detail, OK; over the
 // stopped player of a lazy episode ($lazy) - "Stop", as mel_next_failed. No answer (ts_err_down; owner 27.11.2026):
 // "TorrServer is not responding", what to do - the app TorrServe "on the Dune" when the address is the Dune itself -
-// and the address (mel_ts_shown_addr; none to show: no colon, no address), the detail of curl in the log alone; with $retry (the start again, run after the
+// and the address (mel_ts_shown_addr; none to show: the text of its own, ts_down_noaddr), the detail of curl in the log alone; with $retry (the start again, run after the
 // close; null: nothing to start again) - "Повторить" first and "Отмена", else OK.
 /**
  * @param string $lang
@@ -793,8 +793,8 @@ function mel_ts_fail($lang, $key, $detail = '', $lazy = false, $retry = null)
     {
         list($addr, $dune) = mel_ts_shown_addr();
         $title = mel_tr($lang, 'tsl_down_title');
-        $text = mel_tr($lang, $dune ? 'ts_down_dune' : 'ts_down_other');
-        $parts = array($addr !== '' ? str_replace('{addr}', $addr, $text) : str_replace(': {addr}', '', $text));
+        $parts = array($addr === '' ? mel_tr($lang, 'ts_down_noaddr') :
+            str_replace('{addr}', $addr, mel_tr($lang, $dune ? 'ts_down_dune' : 'ts_down_other')));
     }
     if ($lazy)
     {
