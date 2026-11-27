@@ -80,8 +80,12 @@ function mel_lpv_search_open($st, $how, $opt = array())
 
 // Text $key about a search of the profile of Lampac of id $id: its {name} the name of that source, as "Источник" and
 // the line over the lists show it (mel_src_name; the owner 27.11.2026, (30): not «онлайн» - the releases are online
-// too), then $sub. No such ready profile (gone on the page since): «Lampac». $w (units of mel_gc_w at 1000; 0: any):
-// a wide name cut with "…" to what the other words leave of it - the words after the name stay.
+// too; mel_lpv_src_name), then $sub. $w (units of mel_gc_w at 1000; 0: any) - of a text of the window of the shell,
+// which cuts a line wider than it (MEL_DIALOG_LINE_W: a title, in the middle; MEL_DIALOG_BTN_W: the label of a
+// button, its end lost), not of the dialog of ours, which wraps its title: a wide name cut with "…" to what the other
+// words leave of it, MEL_LPV_NAME_MIN_W at least - the words after the name stay. A name not wider than that is never
+// cut: beside a long title of the movie the line is too wide by the title, cut by the shell as before.
+define('MEL_LPV_NAME_MIN_W', 7250);
 /**
  * @param string $lang
  * @param string $key
@@ -92,11 +96,10 @@ function mel_lpv_search_open($st, $how, $opt = array())
  */
 function mel_lpv_src_tr($lang, $key, $id, $sub = array(), $w = 0)
 {
-    $name = mel_src_name($id);
-    if ($name === '')
-        $name = 'Lampac';
+    $name = mel_lpv_src_name($id);
     if ($w > 0)
-        $name = mel_gc_cut_w($name, 1000, $w - mel_gc_w(mel_lpv_tr($lang, $key, array('name' => '') + $sub), 1000));
+        $name = mel_gc_cut_w($name, 1000, max(MEL_LPV_NAME_MIN_W,
+            $w - mel_gc_w(mel_lpv_tr($lang, $key, array('name' => '') + $sub), 1000)));
     return mel_lpv_tr($lang, $key, array('name' => $name) + $sub);
 }
 
@@ -110,7 +113,8 @@ function mel_lpv_search_shell($run)
 {
     $sid = $run['sid'];
     MelLpv::$run = $run;
-    return mel_lpv_redraw_keys(mel_dialog_act(mel_lpv_src_tr($run['st']['lang'], 'lp_search', $run['st']['lp_prof']), mel_lpv_search_defs($run), array(
+    return mel_lpv_redraw_keys(mel_dialog_act(mel_lpv_src_tr($run['st']['lang'], 'lp_search', $run['st']['lp_prof'], array(),
+        MEL_DIALOG_LINE_W), mel_lpv_search_defs($run), array(
         ShowDialogActionData::actions => array(GUI_EVENT_TIMER => mel_input('lp_tick', array('sid' => $sid), 30000)),
         ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => MEL_LPV_TICK_MS))), $sid);
 }
@@ -272,7 +276,8 @@ function mel_lpv_search_defs($run)
 }
 
 // A message of the search of run $run, title $title and text $text ('' none) with "Закрыть": the window of the shell
-// of lines $lines (of a search of "Источники…" its button and RETURN to lp_cancel: mel_lpv_close_act,
+// of title $shell (null: $title; the name of the source in it cut for its one line, mel_lpv_src_tr - the dialog of
+// ours has $title whole) and lines $lines (of a search of "Источники…" its button and RETURN to lp_cancel: mel_lpv_close_act,
 // mel_lpv_redraw_keys), said as a message (mel_msg_say) - the end of a wait of ours by it is the dialog of ours
 // (mel_wait_end), which of such a search puts its list in when closed (lp_redraw: mel_lpv_redraw).
 /**
@@ -280,13 +285,14 @@ function mel_lpv_search_defs($run)
  * @param string $title
  * @param list<string> $lines
  * @param string $text
+ * @param string|null $shell
  * @return MelAction
  */
-function mel_lpv_msg($run, $title, $lines, $text)
+function mel_lpv_msg($run, $title, $lines, $text, $shell = null)
 {
     $ok = mel_tr($run['st']['lang'], 'lp_close');
     $redraw = MelLpv::$redraw && MelLpv::$redraw['sid'] === $run['sid'];
-    return mel_msg_say(mel_lpv_redraw_keys(mel_dialog($title, $lines, array($ok => mel_lpv_close_act($run['sid']))),
+    return mel_msg_say(mel_lpv_redraw_keys(mel_dialog($shell !== null ? $shell : $title, $lines, array($ok => mel_lpv_close_act($run['sid']))),
         $run['sid']), $title, $text, $ok, null, $redraw ? mel_input('lp_redraw', array('sid' => $run['sid'])) : null);
 }
 
@@ -531,10 +537,9 @@ function mel_lpv_down($run, $why, $detail)
         ')' . ($run['back'] ? ' -> the releases' : ''));
     if ($run['back'])
         return mel_lpv_releases($st, mel_lpv_src_tr($lang, 'lp_note_down', $st['lp_prof']));
-    // A wide name cut with "…": the shell cuts a title wider than the dialog in the middle.
-    $title = mel_lpv_src_tr($lang, 'lp_down_src', $st['lp_prof'], array(), MEL_DIALOG_LINE_W);
     $text = mel_lpv_why($lang, $why, $detail);
-    return mel_lpv_msg($run, $title, mel_dialog_lines($text), $text);
+    return mel_lpv_msg($run, mel_lpv_src_tr($lang, 'lp_down_src', $st['lp_prof']), mel_dialog_lines($text), $text,
+        mel_lpv_src_tr($lang, 'lp_down_src', $st['lp_prof'], array(), MEL_DIALOG_LINE_W));
 }
 
 // The button "Закрыть" of a window of run $sid: of a search of "Источники…" lp_cancel (mel_lpv_redraw), else closed.
@@ -582,8 +587,9 @@ function mel_lpv_result($run)
             if (trim($w['detail']) !== '')
                 $text[] = trim($w['detail']);
         }
-        return mel_lpv_msg($run, mel_lpv_src_tr($lang, 'lp_none', $st['lp_prof'], array('title' => $mv['title'])), array_slice($lines, 0, 2),
-            implode(MEL_MSG_SEP, array_unique($text)));
+        $sub = array('title' => $mv['title']);
+        return mel_lpv_msg($run, mel_lpv_src_tr($lang, 'lp_none', $st['lp_prof'], $sub), array_slice($lines, 0, 2),
+            implode(MEL_MSG_SEP, array_unique($text)), mel_lpv_src_tr($lang, 'lp_none', $st['lp_prof'], $sub, MEL_DIALOG_LINE_W));
     }
     MelLpv::$redraw = null;
     $rows = $v['rows'];

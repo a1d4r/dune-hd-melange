@@ -102,6 +102,8 @@ function mel_lpv_title($mv)
 
 // --- Words.
 
+// Text $key with each {k} of $sub put in, in one pass: a value that reads as a mark itself (a profile named
+// "{title}") stays as it is.
 /**
  * @param string $lang
  * @param string $key
@@ -111,9 +113,22 @@ function mel_lpv_title($mv)
 function mel_lpv_tr($lang, $key, $sub = array())
 {
     $s = mel_tr($lang, $key);
+    $pairs = array();
     foreach ($sub as $k => $v)
-        $s = str_replace('{' . $k . '}', strval($v), $s);
-    return $s;
+        $pairs['{' . $k . '}'] = strval($v);
+    return $pairs ? strtr($s, $pairs) : $s;
+}
+
+// The name of the profile of Lampac of id $id, as "Источник" and the line over the lists show it (mel_src_name); no
+// such ready profile (gone on the page since): «Lampac».
+/**
+ * @param string $id
+ * @return string
+ */
+function mel_lpv_src_name($id)
+{
+    $name = mel_src_name($id);
+    return $name !== '' ? $name : 'Lampac';
 }
 
 // The words of reason $why (MelLpWhy codes, lampac.php), the address masked. The detail only where
@@ -1025,8 +1040,7 @@ function mel_lpv_card($st, $v, $i, $q = null)
     if ($r['subs'] > 0 && !$bal)
         $fields[] = array('lp_card_subs', mel_tr($lang, 'lp_card_subs_v'));
     // The profile of Lampac of the list (v2: one of several).
-    $via = mel_src_name($st['lp_prof']);
-    $fields[] = array('lp_card_via', $via !== '' ? $via : 'Lampac');
+    $fields[] = array('lp_card_via', mel_lpv_src_name($st['lp_prof']));
     $blocks = array();
     foreach ($fields as $f)
         $blocks[] = mel_gc_field(mel_tr($lang, $f[0]), MelKit::wrap($f[1], MEL_K_PX_SECONDARY, '', MEL_GC_CW - MEL_GC_VX, 2),

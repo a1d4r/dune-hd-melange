@@ -33,6 +33,9 @@ define('MEL_DIALOG_LINE', 60);
 // Its width in thousandths of the font size (the advances of font_w.php; mel_gc_w at 1000 px): 29405 fit, 29964 cut
 // (device 08.10.2026).
 define('MEL_DIALOG_LINE_W', 29000);
+// The same of the label of a button 500 px wide of that dialog (mel_dialog): by the share of the widths, 500 of
+// 1100, not seen on the device.
+define('MEL_DIALOG_BTN_W', 13000);
 
 // Characters of the start of $s (valid UTF-8) that fit a line of a dialog,
 // $dots: with "..." after them. MEL_DIALOG_LINE at most, and their advances

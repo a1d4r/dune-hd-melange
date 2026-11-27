@@ -595,6 +595,6 @@ function mel_lpv_no_releases($mv, $s, $e, $lang, $res)
     Mel::$state = $st;
     mel_log('lampac: no releases -> the window with the search');
     return mel_dialog(mel_tr($lang, 'lp_no_releases'), array(), array(
-        mel_lpv_src_tr($lang, 'lp_find', $st['lp_prof']) => mel_close_and(mel_gc_act('lp_find', $st['rid'])),
+        mel_lpv_src_tr($lang, 'lp_find', $st['lp_prof'], array(), MEL_DIALOG_BTN_W) => mel_close_and(mel_gc_act('lp_find', $st['rid'])),
         mel_tr($lang, 'lp_close') => mel_close_and(null)));
 }
