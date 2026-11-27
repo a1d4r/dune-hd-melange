@@ -2194,7 +2194,7 @@ function mel_gc_actions($st, $row)
     }
     $list = array(array('id' => 'sort', 'label' => mel_tr($lang, 'sort_menu'), 'icon' => 'k_icon_arrow-up-down',
         'value' => $tt[mel_gc_sort_word($st, $st['sort'])], 'menu' => mel_gc_sort_menu($st, $tt)));
-    $src = mel_src_item($lang, 'gc_src', array('rid' => $rid), mel_src_now($st), mel_rel_id($st['movie']) === '');
+    $src = mel_gc_src_sub($st);
     if ($src)
         $list[] = $src;
     $list[] = array('id' => 'refresh', 'label' => mel_tr($lang, 'refresh_list'), 'icon' => 'k_icon_refresh-cw',

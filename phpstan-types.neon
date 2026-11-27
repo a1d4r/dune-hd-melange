@@ -84,7 +84,7 @@ parameters:
         MelLpLine: "array{k: 'head'|'shut'|'row'|'one'|'more', i: int, n: int, q: string}"
         # The search window between its ticks (MelLpv::$run, mel_lpv_search_open, online_search.php).
         # The view of the search so far in v, the poll of its replies (mel_lp_poll), more: the rows before "Ещё N" (-1: a new search).
-        MelLpRun: 'array{sid: string, st: MelState, base: string, how: string, back: bool, path: string, key: string, fail: string, phase: string, search: MelLpSearch|null, v: MelLpView, poll: MelLpPoll, more: int, retry: MelAction|null, other: MelAction|null}'
+        MelLpRun: 'array{sid: string, st: MelState, base: string, how: string, back: bool, path: string, key: string, fail: string, phase: string, search: MelLpSearch|null, v: MelLpView, poll: MelLpPoll, more: int, retry: MelAction|null, other_src: MelAction|null}'
         # What the search of a run shows (mel_lpv_search_view): the fields of a wait window (MelWaitTick) and the two lines
         # of the dialog of the shell.
         MelLpSearchView: 'array{stage: string, count: string, share: float, late: bool, shell_lines: array{string, string}}'

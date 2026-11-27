@@ -798,9 +798,7 @@ function mel_ts_fail($lang, $key, $detail = '', $lazy = false, $retry = null)
     }
     if ($lazy)
     {
-        $lines = array();
-        foreach ($parts as $p)
-            $lines = array_merge($lines, mel_dialog_lines($p));
+        list($lines) = mel_msg_parts($parts);
         return mel_dialog($title, $lines, array(mel_tr($lang, 'next_stop') => mel_input('next_stop')));
     }
     if ($retry)

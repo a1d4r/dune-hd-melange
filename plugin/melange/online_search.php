@@ -28,14 +28,15 @@ define('MEL_LPV_FOUND_S', 15);
 // under it shows a list before $st: $st put in when the window closes with no list -
 // MelLpv::$redraw, mel_lpv_redraw_keys), scr (the record of the list on screen the search is started from, an own
 // input of it: with 'replace' the wait window of ours over it, mel_lpv_wait_kit - its run the data of the window, not
-// MelLpv::$run; none, or not opened: the dialog of the shell), retry and other (the first buttons of the dialogs of
-// ours the search of the wait window of ours ends by with no list, each run after the close: «Повторить» of no answer
-// - the input that started this search, again; «Другой источник» of nothing found - the submenu "Источник" over the
-// list, mel_gc_src_menu_act; none: «Закрыть» alone. Not of the dialog of the shell: no list under it to act on).
+// MelLpv::$run; none, or not opened: the dialog of the shell), retry and other_src (the first buttons of the dialogs
+// of ours a search ends by with no list, each run after the close: «Повторить» of no answer - the input that started
+// this search, again; «Другой источник» of nothing found - the submenu "Источник" over the list,
+// mel_gc_src_menu_act; none: «Закрыть» alone. Kept with the run whatever its window: the buttons are of the dialog of
+// ours alone, mel_lpv_end_msg - the window of the shell has «Закрыть» alone).
 /**
  * @param MelState $st
  * @param string $how
- * @param array{back?: bool, path?: string, key?: string, fail?: string, more?: bool, redraw?: bool, scr?: MelOvlScreen|null, retry?: MelAction|null, other?: MelAction|null} $opt
+ * @param array{back?: bool, path?: string, key?: string, fail?: string, more?: bool, redraw?: bool, scr?: MelOvlScreen|null, retry?: MelAction|null, other_src?: MelAction|null} $opt
  * @return MelAction
  */
 function mel_lpv_search_open($st, $how, $opt = array())
@@ -68,17 +69,16 @@ function mel_lpv_search_open($st, $how, $opt = array())
     $run = array('sid' => $sid, 'st' => $st, 'base' => $base, 'how' => $how, 'back' => !empty($opt['back']),
         'path' => isset($opt['path']) ? $opt['path'] : '', 'key' => isset($opt['key']) ? $opt['key'] : '',
         'fail' => isset($opt['fail']) ? $opt['fail'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v,
-        'poll' => mel_lp_poll_start(count($v['rows'])), 'more' => $more ? count($v['rows']) : -1, 'retry' => null,
-        'other' => null);
+        'poll' => mel_lp_poll_start(count($v['rows'])), 'more' => $more ? count($v['rows']) : -1,
+        'retry' => isset($opt['retry']) ? $opt['retry'] : null,
+        'other_src' => isset($opt['other_src']) ? $opt['other_src'] : null);
     // A window of before closed by RETURN of the shell (no lp_cancel): its end.
     mel_lpv_run_end();
     MelLpv::$redraw = !empty($opt['redraw']) ? array('sid' => $sid, 'st' => $st) : null;
     mel_log("lampac: window $sid, " . mel_ep_tag($st) . ", $how, phase {$run['phase']}" .
         ($run['back'] ? ', back' : '') . ($run['path'] !== '' ? ", balancer {$run['path']}" : '') .
         (MelLpv::$redraw ? ', redraw' : ''));
-    $own = array_merge($run, array('retry' => isset($opt['retry']) ? $opt['retry'] : null,
-        'other' => isset($opt['other']) ? $opt['other'] : null));
-    $kit = $how === 'replace' && !empty($opt['scr']) ? mel_lpv_wait_kit($opt['scr'], $own) : null;
+    $kit = $how === 'replace' && !empty($opt['scr']) ? mel_lpv_wait_kit($opt['scr'], $run) : null;
     if ($kit)
         return $kit;
     return mel_lpv_search_shell($run);
@@ -181,7 +181,7 @@ function mel_lpv_wait_done($in)
     if (!mel_lpv_run_live($run))
     {
         mel_log("lampac: window {$run['sid']}: its profile of Lampac gone or changed on the page, what it found not shown");
-        return mel_lpv_msg($run, mel_tr($run['st']['lang'], 'src_changed'));
+        return mel_lpv_msg($run);
     }
     mel_log("lampac: window {$run['sid']}: shown as found so far");
     return mel_lpv_result($run);
@@ -281,21 +281,16 @@ function mel_lpv_search_defs($run)
             GuiButtonDef::width => 300, GuiButtonDef::push_action => mel_input('lp_cancel', array('sid' => $run['sid'])))));
 }
 
-// A message of the search of run $run, title $title, with "Закрыть": the window of the shell (of a search of
-// "Источники…" its button and RETURN to lp_cancel: mel_lpv_close_act, mel_lpv_redraw_keys), said as a message
-// (mel_msg_say) - the end of a wait of ours by it is the dialog of ours (mel_wait_end), which of such a search puts its
-// list in when closed (lp_redraw: mel_lpv_redraw). The ends of a search with no list: mel_lpv_end_msg.
+// The profile of Lampac of run $run is gone or changed on the page: the message of it (src_changed), the yellow
+// triangle, «Закрыть» - an end of the search with no list as the others (mel_lpv_end_msg).
 /**
  * @param MelLpRun $run
- * @param string $title
  * @return MelAction
  */
-function mel_lpv_msg($run, $title)
+function mel_lpv_msg($run)
 {
-    $ok = mel_tr($run['st']['lang'], 'lp_close');
-    $redraw = MelLpv::$redraw && MelLpv::$redraw['sid'] === $run['sid'];
-    return mel_msg_say(mel_lpv_redraw_keys(mel_dialog($title, array(), array($ok => mel_lpv_close_act($run['sid']))),
-        $run['sid']), $title, '', $ok, null, $redraw ? mel_input('lp_redraw', array('sid' => $run['sid'])) : null);
+    $title = mel_tr($run['st']['lang'], 'src_changed');
+    return mel_lpv_end_msg($run, $title, $title, array(), 'k_icon_triangle-alert', 'warn', null);
 }
 
 // The search of run $run is over with no list: title $title (the dialog of ours has it whole; $shell - of the window
@@ -348,7 +343,7 @@ function mel_lpv_wait_tick($run, $sec)
     if (!mel_lpv_run_live($run))
     {
         mel_log("lampac: window {$run['sid']}: its profile of Lampac gone or changed on the page, closed with no request");
-        return mel_wait_end(mel_lpv_msg($run, mel_tr($run['st']['lang'], 'src_changed')));
+        return mel_wait_end(mel_lpv_msg($run));
     }
     $base = Mel::$settings['lp'];
     if ($base === '')
@@ -594,7 +589,7 @@ function mel_lpv_close_act($sid)
 // <its source> для «…» ничего не нашлось" (mel_lpv_end_msg; the owner 27.11.2026, (31)): the grey mark of a search
 // with nothing, «Опрошено балансеров: N, вариантов нет» (N as the search counted them, mel_lpv_search_view; none
 // asked: «Вариантов нет», no count), then
-// what Lampac said of its login (accsdb), «Другой источник» of the run (its 'other'; none: no such button) and
+// what Lampac said of its login (accsdb), «Другой источник» of the run (its 'other_src'; none: no such button) and
 // «Закрыть» (a title with releases, back: those with the yellow line). All the sources found turned off in
 // "Источники…" (not back): the list of no row all the same, with the yellow line of it - MENU there turns them on.
 /**
@@ -629,7 +624,7 @@ function mel_lpv_result($run)
         return mel_lpv_end_msg($run, mel_lpv_src_tr($lang, 'lp_none', $st['lp_prof'], $sub),
             mel_lpv_src_tr($lang, 'lp_none', $st['lp_prof'], $sub, MEL_DIALOG_LINE_W),
             array_merge(array($asked), array_values(array_unique($said))), 'k_icon_search-x', '',
-            $run['other'] ? mel_btn(mel_tr($lang, 'lp_other_src'), 'k_icon_layers', $run['other']) : null);
+            $run['other_src'] ? mel_btn(mel_tr($lang, 'lp_other_src'), 'k_icon_layers', $run['other_src']) : null);
     }
     MelLpv::$redraw = null;
     $rows = $v['rows'];

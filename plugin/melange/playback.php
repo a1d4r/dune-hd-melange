@@ -525,7 +525,6 @@ function mel_pre_failed($st, $r, $pos, $lazy, $pre, $from)
     mel_log("error: $key" . ($detail !== '' ? " ($detail)" : '') . ($copies ? sprintf(', copy %d of %d: %s',
         $r['copy'] + 1, count($r['copies']), $svc) : '') . ", row $i -> dialog, " .
         ($offer ? implode(', ', $offer) . ' offered' : 'no other copy left'));
-    $lines = array_merge(mel_dialog_lines(mel_tr($lang, $key)), mel_dialog_lines($detail));
     // $own picks the set of the buttons, not the look of the window (that is of mel_dlg_of: the dialog of ours over a
     // screen of ours, else the window of the shell). A start from the list on screen ($from its rid): the buttons are
     // own inputs of the list (gc_via, gc_twin), run after the close of the window (mel_ask). Else - under the player,
@@ -538,24 +537,33 @@ function mel_pre_failed($st, $r, $pos, $lazy, $pre, $from)
     if ($twin >= 0)
         $bs[] = mel_btn(mel_tr($lang, 'pre_twin'), 'k_icon_film',
             mel_gc_act($own ? 'gc_twin' : 'pre_twin', $st['rid'], array('i' => strval($i), 'j' => strval($twin))));
-    $name = $copies ? str_replace('{svc}', $r['service'] !== '' ? $r['service'] : $svc, mel_tr($lang, 'pre_svc_failed')) : '';
+    // The title and the paragraphs under it. Several copies: the service that refused, its reason, the detail; one
+    // copy: the title of its error (mel_error), its detail.
+    $title = mel_tr($lang, $key);
+    $parts = array($detail);
+    if ($copies)
+    {
+        $parts = array($title, $detail);
+        $title = str_replace('{svc}', $r['service'] !== '' ? $r['service'] : $svc, mel_tr($lang, 'pre_svc_failed'));
+    }
     if ($own)
     {
         $bs[] = mel_btn_ok();
-        return $copies ? mel_ask($name, array(mel_tr($lang, $key), $detail), 'k_icon_circle-x', 'err', $bs) :
-            mel_ask(mel_tr($lang, $key), array($detail), 'k_icon_circle-x', 'err', $bs);
+        return mel_ask($title, $parts, 'k_icon_circle-x', 'err', $bs);
     }
+    list($lines) = mel_msg_parts($parts);
     $buttons = array();
     foreach ($bs as $b)
         $buttons[$b['label']] = $b['act'];
     if ($lazy)
     {
         $buttons[mel_tr($lang, 'next_stop')] = mel_input('next_stop');
-        return mel_dialog(mel_tr($lang, 'next_failed', $ep), array_merge($copies ? array($name) : array(), $lines), $buttons);
+        // Under the title of the episode: the title of the error its first line.
+        return mel_dialog(mel_tr($lang, 'next_failed', $ep),
+            array_merge($copies ? array($title) : mel_dialog_lines($title), $lines), $buttons);
     }
     $buttons['OK'] = mel_close_and(null);
-    // One copy: the title of its error (mel_error), its detail under it.
-    return $copies ? mel_dialog($name, $lines, $buttons) : mel_dialog(mel_tr($lang, $key), mel_dialog_lines($detail), $buttons);
+    return mel_dialog($title, $lines, $buttons);
 }
 
 // Index $k of input $in of a dialog of mel_pre_failed ("0".."9999") -> it, -1 junk.

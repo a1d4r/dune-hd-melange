@@ -63,14 +63,16 @@ function mel_kp_kind($f)
     return isset($f['desc']['items']) ? 'check' : 'menu';
 }
 
-// The texts of frame $f of the kind text: the strings of its description.
+// The texts of frame $f of the kind text: the strings of its description (a 'text' not a list: none).
 /**
  * @param MelKpFrame $f
  * @return list<string>
  */
 function mel_kp_texts($f)
 {
-    return array_values(array_filter(isset($f['desc']['text']) ? $f['desc']['text'] : array(), 'is_string'));
+    /** @var mixed $t */
+    $t = isset($f['desc']['text']) ? $f['desc']['text'] : array();
+    return is_array($t) ? array_values(array_filter($t, 'is_string')) : array();
 }
 
 // The focusable lines of frame $f in their order, each array(kind, key, g, j): kind item (of a menu), all, check (a line

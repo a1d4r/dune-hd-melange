@@ -80,7 +80,7 @@ function mel_src_panel($lang, $control, $params, $now = '', $lp_only = false)
  * @param array<string, string> $params
  * @param string $now
  * @param bool $lp_only
- * @return MelKpItem|null
+ * @return array{id: string, label: string, icon: string, value: string, menu: MelKpSubDesc}|null
  */
 function mel_src_item($lang, $control, $params, $now = '', $lp_only = false)
 {
@@ -227,8 +227,8 @@ function mel_gc_src_dialog($title, $lang, $res, $more = null)
     if ($more)
         return mel_ask($title, array(mel_tr($lang, $res['error'])), 'k_icon_circle-x', 'err', array(mel_btn_ok(),
             mel_btn(mel_tr($lang, 'errors_menu'), 'k_icon_triangle-alert', $more)));
-    return mel_dialog($title, array_merge(mel_dialog_lines(mel_tr($lang, $res['error'])), mel_dialog_lines($res['detail']),
-        $why), array('OK' => mel_close_and(null)));
+    list($lines) = mel_msg_parts(array(mel_tr($lang, $res['error']), $res['detail']));
+    return mel_dialog($title, array_merge($lines, $why), array('OK' => mel_close_and(null)));
 }
 
 // gc_src_errs ("Ошибки аддонов" of the dialog of a source that failed, mel_gc_src_dialog) of a live list: the panel of the
@@ -256,20 +256,34 @@ function mel_gc_errs($in)
     return mel_kp_open($scr, mel_errors_panel(mel_tr($st['lang'], 'errors_menu'), $st['lang'], $st['src_errors']));
 }
 
+// The item "Источник" of "Действия" of live list $st with its submenu (mel_src_item): the sources of its title - of
+// Lampac alone for one of no IMDb and no TMDB (mel_rel_id) -, the one the list shows picked (mel_src_now), gc_src of
+// its rid each. The one rule of it for both lists (mel_gc_actions, mel_lpv_actions) and «Другой источник»
+// (mel_gc_src_menu_act, mel_gc_src_menu). Fewer than two ready: null.
+/**
+ * @param MelState $st
+ * @return array{id: string, label: string, icon: string, value: string, menu: MelKpSubDesc}|null
+ */
+function mel_gc_src_sub($st)
+{
+    return mel_src_item($st['lang'], 'gc_src', array('rid' => $st['rid']), mel_src_now($st), mel_rel_id($st['movie']) === '');
+}
+
 // The action of gc_src_menu of live list $st, «Другой источник» of a window over it (mel_gc_src_menu); no submenu
-// "Источник" of it (fewer than two profiles ready, mel_src_panel): null.
+// "Источник" of it (mel_gc_src_sub): null.
 /**
  * @param MelState $st
  * @return MelAction|null
  */
 function mel_gc_src_menu_act($st)
 {
-    return mel_src_in_menu(mel_rel_id($st['movie']) === '') ? mel_gc_act('gc_src_menu', $st['rid']) : null;
+    return mel_gc_src_sub($st) ? mel_gc_act('gc_src_menu', $st['rid']) : null;
 }
 
 // gc_src_menu («Другой источник» of the window of a search with nothing found, mel_lpv_result) of a live list: the
-// submenu "Источник" of its "Действия" (mel_src_panel, as mel_src_item of mel_gc_actions and mel_lpv_actions has it)
-// over it, itself the panel. A list not live, no such submenu: nothing.
+// submenu "Источник" of its "Действия" (mel_gc_src_sub) over it, itself the panel. A list not live, no such submenu:
+// nothing; an overlay open over the list (a dialog, a panel, a wait - the button sends it after the close of its
+// dialog alone): nothing.
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -277,15 +291,19 @@ function mel_gc_src_menu_act($st)
 function mel_gc_src_menu($in)
 {
     $st = Mel::$state;
-    $d = $st && isset($in->rid) && $in->rid === $st['rid'] ? mel_src_panel($st['lang'], 'gc_src', array('rid' => $st['rid']),
-        mel_src_now($st), mel_rel_id($st['movie']) === '') : null;
-    if (!$st || !$d)
+    $src = $st && isset($in->rid) && $in->rid === $st['rid'] ? mel_gc_src_sub($st) : null;
+    if (!$st || !$src)
     {
         mel_log('source: menu: not a live list or no choice of sources, nothing');
         return null;
     }
+    if (mel_ovl_open_on($st['rid']))
+    {
+        mel_log('source: menu: an overlay open over the list, nothing');
+        return null;
+    }
     list($scr) = mel_gc_scr_live($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null, true);
-    return mel_kp_open($scr, $d);
+    return mel_kp_open($scr, $src['menu']);
 }
 
 // gc_src (p: the id of a profile, n: its name for the dialog; MENU "Источник") of a live list: this title from
@@ -453,7 +471,7 @@ function mel_src_lampac($st, $id, $tag, $scr = null, $retry = null)
     $ns = $st;
     $ns['lp_prof'] = $id;
     mel_log("$tag: the search");
-    return mel_lpv_search_open($ns, 'replace', array('scr' => $scr, 'retry' => $retry, 'other' => mel_gc_src_menu_act($st)));
+    return mel_lpv_search_open($ns, 'replace', array('scr' => $scr, 'retry' => $retry, 'other_src' => mel_gc_src_menu_act($st)));
 }
 
 // --- The name of the source over the lists (the releases and the online list, view_online.php).

@@ -1336,7 +1336,7 @@ function mel_lpv_actions($st, $L)
     if (mel_gc_can_choose($st))
         $list[] = array('id' => 'choose', 'label' => mel_tr($lang, 'choose_menu'), 'icon' => 'k_icon_list-video',
             'act' => mel_gc_act('lp_choose', $rid));
-    $src = mel_src_item($lang, 'gc_src', array('rid' => $rid), mel_src_now($st), mel_rel_id($st['movie']) === '');
+    $src = mel_gc_src_sub($st);
     if ($src)
         $list[] = $src;
     $errors = mel_lpv_errors_of($st);
@@ -1422,7 +1422,7 @@ function mel_lpv_refresh($st, $scr = null)
             array(mel_btn_ok()));
     }
     return mel_lpv_search_open($st, 'replace', array('scr' => $scr, 'retry' => mel_gc_act('lp_refresh', $st['rid']),
-        'other' => mel_gc_src_menu_act($st)));
+        'other_src' => mel_gc_src_menu_act($st)));
 }
 
 // lp_pick (ENTER) of the online list $st: the line of a balancer - folded or unfolded (mel_lpv_fold); the row "Ещё N" - the
