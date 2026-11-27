@@ -1573,7 +1573,7 @@ function mel_oc_rows_log($pos)
 }
 
 // get_folder_view of "card:<key>" (the key of the screen, MelOc); a card not in memory and not made anew: "outdated". Rows of
-// posters still asked: the timer (mel_oc_load). The overlay of an old screen of the card dropped (mel_oc_ovl_drop): open,
+// posters still asked: the timer (mel_oc_load). The overlay of an old screen of the card dropped (mel_ovl_drop): open,
 // it would keep card_load of the new one from putting it. The first view after the invalidate of mel_oc_after_stop (back
 // from the player of a list of the card or of a copy on the disk; stopped, the flag off): at the place of the start (MelOc pos, of the key that started the player), not by $sel_state
 // - the shell keeps its focus where it was (device r25: the start on "Continue", the frame on the still).
@@ -1588,7 +1588,7 @@ function mel_oc_folder_view($media_url, $sel_state)
     $c = mel_oc_get($key);
     if (!$c)
         return mel_lines_view(array(mel_expired_item()));
-    mel_oc_ovl_drop($key);
+    mel_ovl_drop($key);
     $l = mel_oc_layout($c);
     $kept = !empty($c['stopped']);
     unset(MelOc::$cards[$key]['stopped']);
@@ -1687,18 +1687,6 @@ function mel_oc_slot($l)
     return $l['lib'] || $l['lib_eps'];
 }
 
-// The screen of card $key put anew (card_load with the overlay closed, card_finish, a new screen of the card: left by
-// Home with the window open, then opened again): the overlay it opened (the window of the copies) is not that of the
-// new one - its state gone (a key of it after this one is of a stale screen, mel_ovl_stale).
-/**
- * @param string $key
- */
-function mel_oc_ovl_drop($key)
-{
-    if (MelOvl::$st && MelOvl::$st['scr']['owner'] === $key)
-        MelOvl::$st = null;
-}
-
 // card_load, the timer of the screen of card $key laid out as $l (mel_oc_acts), in this order:
 //   - its window of the copies open (a tick sent before the overlay took the timer off): nothing - the screen put anew
 //     would take the window away; the close gives the timer back, a tick then;
@@ -1706,7 +1694,7 @@ function mel_oc_ovl_drop($key)
 //     window W2 of those copies over the screen, mode first (mel_lib_win_open) - before the rows of posters (mel_oc_load
 //     puts the screen anew, its nav gone); only of the copies the screen shown has (mel_oc_lib_shown of nav), else
 //     none, logged, and on to the posters;
-//   - the rows of posters (mel_oc_load), the overlay of the screen before dropped (mel_oc_ovl_drop).
+//   - the rows of posters (mel_oc_load), the overlay of the screen before dropped (mel_ovl_drop).
 /**
  * @param string $key
  * @param MelOcNav $l
@@ -1714,12 +1702,12 @@ function mel_oc_ovl_drop($key)
  */
 function mel_oc_tick($key, $l)
 {
-    if (MelOvl::$st && MelOvl::$st['open'] && MelOvl::$st['scr']['owner'] === $key)
+    if (mel_ovl_open_on($key))
     {
         mel_log("card: own $key: a tick under the overlay, none");
         return null;
     }
-    mel_oc_ovl_drop($key);
+    mel_ovl_drop($key);
     if (isset(MelOc::$cards[$key]['lw_auto']))
     {
         $w = MelOc::$cards[$key]['lw_auto'];
@@ -2048,7 +2036,7 @@ function mel_oc_src_items($key, $c, $l, $pos)
 }
 
 // card_finish (GUI_EVENT_MENU_PLAYBACK_FINISH of the screen of card $c, $key; after STOP; the caller drops its overlay,
-// mel_oc_ovl_drop): the card anew in place (its progress, its lines over the buttons; of a series the marks and the bars
+// mel_ovl_drop): the card anew in place (its progress, its lines over the buttons; of a series the marks and the bars
 // of the stills, the episode offered, the copy OK plays, lib_cur), the history stale first (mel_pg_stale: the shell may write the record after
 // PLAYBACK_FINISH, within MEL_PG_SIG_S of the last read, and the line of the history would show the old one); after a copy on the disk (played) also the tab "TV" built anew (mel_tv_flag)
 // and the main screens of the catalog anew first (mel_catv_after_player: the row "Continue" and the badges), as
@@ -2242,7 +2230,7 @@ function mel_oc_input($in, $control)
         return mel_ct_play($c);
     if ($control === 'card_finish')
     {
-        mel_oc_ovl_drop($key);
+        mel_ovl_drop($key);
         return mel_oc_finish($key, $c);
     }
     if ($control === 'card_src_menu')

@@ -1636,8 +1636,7 @@ function mel_lpv_input($in, $control)
         return null;
     // Under the open overlay of the list (a panel: a key sent before its map was applied): none, nothing changed - the
     // panel was built for this view of the list.
-    $o = MelOvl::$st;
-    if ($o && $o['open'] && $o['scr']['owner'] === $st['rid'])
+    if (mel_ovl_open_on($st['rid']))
     {
         mel_log("lampac: $control under the overlay, none");
         return null;

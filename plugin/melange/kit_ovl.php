@@ -147,6 +147,17 @@ function mel_ovl_drop($owner)
         MelOvl::$st = null;
 }
 
+// The overlay of the screen of owner $owner is open: a key of the screen itself (sent before the map of the overlay was
+// applied) and a tick of its timer are not done under it.
+/**
+ * @param string $owner
+ * @return bool
+ */
+function mel_ovl_open_on($owner)
+{
+    return MelOvl::$st && MelOvl::$st['open'] && MelOvl::$st['scr']['owner'] === $owner;
+}
+
 // A key $in of an overlay of a stale screen - no state (a php_server restart) or one of another owner than its o:
 // close_and_run leaves the screen, logged. Else null: the screen is live (its overlay open, or closed by the key before
 // this one).

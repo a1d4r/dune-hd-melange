@@ -2170,8 +2170,7 @@ function mel_gc_fold($st, $lv)
  */
 function mel_gc_input($in)
 {
-    $o = MelOvl::$st;
-    if ($o && $o['open'] && isset($in->rid) && $o['scr']['owner'] === $in->rid)
+    if (isset($in->rid) && is_string($in->rid) && mel_ovl_open_on($in->rid))
     {
         mel_log('list: a key under the overlay, none');
         return null;
