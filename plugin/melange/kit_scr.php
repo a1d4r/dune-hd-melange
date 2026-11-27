@@ -175,7 +175,7 @@ function mel_ks_player_error($lang, $look, $code, $other, $retry)
 }
 
 // «No releases», in place of an empty list (or the post of a wait screen): the look $look of the title, search-x in
-// text 2, «Раздач нет», text $text (what found none and what to do), buttons $buttons («Искать онлайн», «Откуда
+// text 2, «Раздач нет», text $text (what found none and what to do), buttons $buttons («Искать в <the source>», «Откуда
 // брать», …); none: «Назад» alone. RETURN: back where it came from.
 /**
  * @param string $lang
