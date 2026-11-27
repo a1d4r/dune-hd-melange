@@ -129,6 +129,11 @@ function mel_vod_item($mv, $s, $e, $url, $hash, $list)
 // recent_uid of episode $e of season $s of card $id by $hash (an infoHash, the key of a voice of Lampac). Read back
 // by history.php: mel_wh_pick (the release), mel_wh_progress, mel_wh_series (the progress of the episodes on the own
 // card); mel_lazy_url expects it in the reply of a lazy episode.
+// The rest of a uid of ours is one of five, each with a check of its own: <40 hex> an infoHash and nf-<12 hex> a row
+// of none (mel_rel_key_ok, parse.php), lp-<path>-<8 hex> a voice of Lampac (mel_lp_key_parse, lampac.php),
+// lib-<12 hex> a copy of the media library (mel_lib_key_ok, library.php: the uids of playback_lib.php), "m" the mark
+// of an episode (mel_wh_mark_uid and mel_wh_marks, history.php). The prefixes nf-, lp-, lib- and "m" start with no
+// hex digit and differ from each other: no rest passes two checks.
 /**
  * @param string $id
  * @param int|string $s
@@ -213,7 +218,8 @@ function mel_play_plan($seasons, $s, $others)
 // vod_play linked to the Dune card: recent_uid (prefix = our supplier id)
 // gives [NN%] on the button, mdb_info the "Continue watching" row,
 // recent_plugin/recent_action_params bring "Continue" back to play_action
-// with wh_release and wh_mode in supplier_info. Without a dune id or infoHash: unlinked.
+// with wh_release and wh_mode in supplier_info. Without a dune id or a key of the release
+// (mel_row_rel: the infoHash, else the key of a row of none - through Debrid only): unlinked.
 // A linked episode plays in a playlist of its whole season (by season_numbers),
 // the others lazy, then E1 of the next season; P+/P- and the autoplay work.
 // $ts (TorrServer, torrserver.php): array('url' => stream URL, 'eps' =>
@@ -266,10 +272,12 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
             $ready = true;
         }
     }
-    $linked = $mv['dune_id'] !== '' && $r['hash'] !== '' && ($ts || $ready || $r['cached'] === true);
+    // The key of the release in the uid and wh_release: the infoHash, else that of mel_nf_key (Debrid only: none through TorrServer).
+    $rel = $ts ? $r['hash'] : mel_row_rel($r);
+    $linked = $mv['dune_id'] !== '' && $rel !== '' && ($ts || $ready || $r['cached'] === true);
     $seasons = $mv['seasons'];
     $season = $linked && $e > 0 && isset($seasons[$s]) && $e <= $seasons[$s] && $seasons[$s] <= MEL_EPISODES_MAX &&
-        preg_match('/^[0-9a-f]{40}$/D', $r['hash']);
+        mel_rel_key_ok($rel);
     $others = $ts ? $ts['others'] : array();
     $plan = $season ? mel_play_plan($seasons, $s, $others) : array();
     if (count($plan) > MEL_EPISODES_MAX)
@@ -279,7 +287,7 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
     }
     // A playlist of several: the title in vod_info, "S2 E4 · <episode>" in its items.
     $list = count($plan) > 1;
-    $ser = mel_vod_item($mv, $s, $e, $url, $linked ? $r['hash'] : '', $list);
+    $ser = mel_vod_item($mv, $s, $e, $url, $linked ? $rel : '', $list);
     if ($e > 0)
     {
         // A stream to read only when it is a file: the CDN of Debrid or TorrServer, its URL with &play (else no stream).
@@ -305,7 +313,7 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
             if ($q === $s && $i === $e)
                 $ndx = $n;
             $series[] = $q === $s && $i === $e ? $ser : (isset($urls[$q][$i]) ?
-                mel_vod_item($mv, $q, $i, $urls[$q][$i], $r['hash'], $list) : mel_lazy_series($mv, $q, $i, $r['hash'], $list, $mode));
+                mel_vod_item($mv, $q, $i, $urls[$q][$i], $rel, $list) : mel_lazy_series($mv, $q, $i, $rel, $list, $mode));
         }
         mel_movie_save($mv, $st['lang']);
     }
@@ -334,7 +342,7 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
     if ($linked)
     {
         $info[PluginVodInfo::recent_plugin] = 'shell_ext';
-        $info[PluginVodInfo::recent_action_params] = mel_recent_params($mv['dune_id'], $r['hash'], $mode,
+        $info[PluginVodInfo::recent_action_params] = mel_recent_params($mv['dune_id'], $rel, $mode,
             Mel::$settings['prof']);
     }
     // A file cached on several services: which copy plays.
@@ -342,7 +350,8 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
         mel_row_svc($r)) : '';
     $resumed = mel_resumed_note($info);
     mel_log('play: hash=' . ($r['hash'] !== '' ? $r['hash'] : '-') .
-        " s=$s e=$e pos=$pos linked=" . ($linked ? 1 : 0) . ', playlist ' . count($series) . ($ts ? ', TorrServer' : '') . $copy .
+        " s=$s e=$e pos=$pos linked=" . ($linked ? 1 : 0) . ($r['hash'] === '' && $rel !== '' ? " key=$rel" : '') .
+        ', playlist ' . count($series) . ($ts ? ', TorrServer' : '') . $copy .
         $resumed);
     return array(
         GuiAction::handler_string_id => PLUGIN_VOD_PLAY_ACTION_ID,
@@ -398,7 +407,7 @@ function mel_pf_wrap($a)
 function mel_main_svc($mv, $r)
 {
     $v = Mel::$via;
-    if ($v && $v['k'] === $mv['dune_id'] && $v['hash'] === $r['hash'])
+    if ($v && $v['k'] === $mv['dune_id'] && $v['hash'] === mel_row_rel($r))
     {
         foreach (isset($r['copies']) ? $r['copies'] : array() as $c)
         {
@@ -603,7 +612,7 @@ function mel_pre_via($in)
         return mel_close_and(mel_error('err_list_expired'));
     }
     $st = $a['st'];
-    Mel::$via = array('k' => $st['movie']['dune_id'], 'hash' => $row['hash'], 'svc' => $svc);
+    Mel::$via = array('k' => $st['movie']['dune_id'], 'hash' => mel_row_rel($row), 'svc' => $svc);
     mel_log(sprintf('via: %s, row %d: %s refused, %s chosen', mel_ep_tag($st), $a['i'], implode(', ', $a['tried']), $svc));
     return mel_alt_start($a, $a['i']);
 }
@@ -1020,12 +1029,12 @@ function mel_finish_list($in)
     {
         mel_log('finish: ' . mel_ep_tag($st) . ' as the list, screen kept');
         $pr = $ns['rows'];
-        return mel_gc_bar_update($st, isset($pr[$p['sel']]) ? $pr[$p['sel']]['hash'] : '');
+        return mel_gc_bar_update($st, isset($pr[$p['sel']]) ? mel_row_rel($pr[$p['sel']]) : '');
     }
     $sel = $p['sel'];
     if (isset($ns['pack_only']))
     {
-        $hash = $ns['rows'][$sel]['hash'];
+        $hash = mel_row_rel($ns['rows'][$sel]);
         $res = mel_next_fetch($ns['movie']['dune_id'], $ns['s'], $ns['e']);
         if (isset($res['error']))
         {
@@ -1372,7 +1381,7 @@ function mel_relist($st, $s, $e, $hash)
     return array('st' => mel_gc_put_cursor($ns, $sel, $st), 'sel' => $sel, 'by' => $by);
 }
 
-// The row of release $hash in $rows of S$s E$e: with the episode in its file
+// The row of release $hash (mel_row_rel) in $rows of S$s E$e: with the episode in its file
 // first (mel_has_ep, by its number $n too), as mel_next (a release not in the cache has its hash in every reply,
 // even a pack of another season), else any of it, else -1 (mel_gc_put_cursor: the line a list opens on); of rows
 // alike a row of the main list before one of the tier (a copy of the release there, which the rows put first, would
@@ -1392,7 +1401,7 @@ function mel_release_row($rows, $hash, $s, $e, $n = 0)
     $best = -1;
     foreach ($rows as $i => $r)
     {
-        if ($hash === '' || $r['hash'] !== $hash)
+        if ($hash === '' || mel_row_rel($r) !== $hash)
             continue;
         $ep = $e < 1 || mel_has_ep($r, $s, $e, $n);
         $rank = ($ep ? 2 : 0) + (empty($r['tier']) ? 1 : 0);
@@ -1405,6 +1414,31 @@ function mel_release_row($rows, $hash, $s, $e, $n = 0)
             break;
     }
     return array($sel, $by);
+}
+
+// Row $r of list $st takes the bar of its release (mel_gc_share, mel_gc_bar_update), as the cursor does
+// (mel_release_row: a row with the episode first). A key of mel_nf_key (mel_rel_nf) comes in several rows of one list,
+// the files of one release: the episode, its opening, the extras - of them only those with the episode of the list in
+// the file (mel_has_ep), if any has it; none has: all of them. An infoHash, a movie: every row of it, as before.
+/**
+ * @param MelState $st
+ * @param MelRow $r
+ * @return bool
+ */
+function mel_row_takes_bar($st, $r)
+{
+    $rel = mel_row_rel($r);
+    $s = $st['s'];
+    $e = $st['e'];
+    $n = mel_cin_n($st['movie']['cin'], $s, $e);
+    if ($e < 1 || !mel_rel_nf($rel) || mel_has_ep($r, $s, $e, $n))
+        return true;
+    foreach ($st['rows'] as $o)
+    {
+        if (mel_has_ep($o, $s, $e, $n) && mel_row_rel($o) === $rel)
+            return false;
+    }
+    return true;
 }
 
 // The dialog of a failed mel_relist: the error, its detail, OK; a reply of error
@@ -1443,7 +1477,7 @@ function mel_relist_dialog($title, $lang, $res)
 function mel_relist_screen($st, $s, $e, $cur, $tag, $log_old, $title, $erase)
 {
     // An empty list (mel_gc_src): no release to keep.
-    $r = mel_relist($st, $s, $e, isset($st['rows'][$cur]) ? $st['rows'][$cur]['hash'] : '');
+    $r = mel_relist($st, $s, $e, isset($st['rows'][$cur]) ? mel_row_rel($st['rows'][$cur]) : '');
     if (isset($r['error']))
     {
         mel_log(sprintf('%s failed: %s, %.2f s, the screen kept', $tag, $r['error'], microtime(true) - Mel::$t0));
@@ -1536,7 +1570,8 @@ function mel_movie_load($key)
 // -> array(url, markers if any: get_vod_stream_info only; call_plugin makes the reply of $op), else error_action. The URL: from
 // MEL_FW_NEXT_URL_R, either operation of Debrid, TorrServer, Lampac - their handler runs here (mel_lazy_url); the
 // playlist goes on, the shell writes the record of the episode by the uid of its item. Else, the disk, an older
-// firmware: handle_user_input next / lp_next / lib_next, its new vod_play or dialog. A bad $pb: the error.
+// firmware: handle_user_input next / lp_next / lib_next, its new vod_play or dialog. A bad $pb (the key of a row of no
+// infoHash with mode ts too: mel_rel_nf): the error.
 /**
  * @param mixed $pb
  * @param string $op
@@ -1553,8 +1588,8 @@ function mel_lazy_action($pb, $op = '')
     // An episode of the disk (mel_lib_lazy_url).
     else if (is_string($pb) && strpos($pb, 'lib_next:') === 0)
         return mel_lib_lazy($pb);
-    else if (!is_string($pb) || !preg_match('/^aio_next:(' . MEL_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([0-9a-f]{40}):(debrid|ts)' .
-        '(?::([a-z0-9]{8}))?$/D', $pb, $m))
+    else if (!is_string($pb) || !preg_match('/^aio_next:(' . MEL_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):(' . MEL_REL_RE . '):(debrid|ts)' .
+        '(?::([a-z0-9]{8}))?$/D', $pb, $m) || ($m[5] === 'ts' && mel_rel_nf($m[4])))
     {
         mel_log('lazy: bad playback_url ' . (is_string($pb) ? mel_cut(mel_mask($pb), 100) : gettype($pb)));
         return mel_error('err_list_expired', '', true);
@@ -1754,7 +1789,7 @@ function mel_next_prof($in)
         mel_op_use($in->p, Mel::$settings['lp_prof']);
 }
 
-// Params k, s, e, h of next/next_pick -> array(key, s, e, hash) or null.
+// Params k, s, e, h of next/next_pick -> array(key, s, e, hash: the key of the release, MEL_REL_RE) or null.
 /**
  * @param stdClass $in
  * @return array{string, int, int, string}|null
@@ -1763,7 +1798,7 @@ function mel_next_params($in)
 {
     $p = array();
     foreach (array('k' => '/^' . MEL_DUNE_ID . '$/D', 's' => '/^[1-9][0-9]{0,3}$/D', 'e' => '/^[1-9][0-9]{0,4}$/D',
-        'h' => '/^[0-9a-f]{40}$/D') as $k => $re)
+        'h' => '/^(?:' . MEL_REL_RE . ')$/D') as $k => $re)
     {
         if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
             return null;
@@ -1821,7 +1856,7 @@ function mel_has_ep($r, $s, $e, $n = 0)
     return in_array($e, $r['pf_episodes'], true) && ($r['pf_seasons'] === null || in_array($s, $r['pf_seasons'], true));
 }
 
-// The rows of release $hash in $rows (indexes, -1: none): 'deb' the row with a
+// The rows of release $hash (mel_row_rel) in $rows (indexes, -1: none): 'deb' the row with a
 // URL, a cached one first, with episode $s/$e in its file ($e < 1: any; mel_has_ep,
 // by its number $n too);
 // 'p2p' the first P2P row (no URL); 'ts' the row for TorrServer: the first P2P
@@ -1852,7 +1887,7 @@ function mel_release_pick($rows, $hash, $s, $e, $n = 0)
     foreach ($pos as $i)
     {
         $r = $rows[$i];
-        if ($r['hash'] !== $hash)
+        if (mel_row_rel($r) !== $hash)
             continue;
         $p['rows']++;
         if ($p['ts'] < 0)
@@ -1919,7 +1954,7 @@ function mel_next_fetch_retry($key, $s, $e, $hash, $mode)
 }
 
 // A lazy episode, the way its playlist was started (m), never the other way.
-// debrid: the same release (infoHash) with a URL and this episode in its file,
+// debrid: the same release (infoHash, the key of a row of none: mel_row_rel) with a URL and this episode in its file,
 // a cached row first -> vod_play of it (mel_play checks it: a placeholder gets
 // its dialog). A row not cached plays only if the check finds a stream (the
 // CDN); else the dialog "not in this release".
@@ -1946,7 +1981,7 @@ function mel_next($in)
     mel_next_prof($in);
     $p = mel_next_params($in);
     $mode = isset($in->m) ? $in->m : '';
-    if (!$p || ($mode !== 'debrid' && $mode !== 'ts'))
+    if (!$p || ($mode !== 'debrid' && $mode !== 'ts') || ($mode === 'ts' && mel_rel_nf($p[3])))
     {
         mel_log('next: bad params');
         return mel_next_failed($lang, '', 'err_list_expired');

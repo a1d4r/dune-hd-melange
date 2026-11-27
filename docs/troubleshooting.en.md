@@ -149,12 +149,20 @@ Answers of the **"Check"** button of a server on the settings page ([Your own to
 | "Transmission does not accept the server name of the address: use an IP or add the name to rpc-host-whitelist" | use the IP address or add the name to `rpc-host-whitelist` |
 | "Labels are kept since Transmission 4.0: this server will skip them" | on Transmission older than 4.0 tags are not kept, everything else works |
 | "The reply does not look like qBittorrent", "The reply does not look like Transmission (HTTP …): check the address", "Login: HTTP …: not a qBittorrent?" | wrong address or the wrong client is selected |
+| "The reply does not look like Synology Download Station (…): check the address" | wrong address, the wrong client is selected, or Download Station is not installed on the NAS |
+| "The user has no access to Download Station: allow it in DSM (Control Panel → Application Privileges)" | in DSM open Control Panel → Application Privileges and allow Download Station for this user |
+| "The user has 2-step verification on: create a separate DSM user without it" | create a separate DSM user without 2-step verification and enter its login and password |
+| "Synology has blocked the address of the Dune after wrong passwords (auto block in DSM)" | after several wrong passwords in a row DSM keeps the Dune out even with the right one. Unblock the Dune's address in DSM and fix the password |
+| under "OK: logged in · version …" a second line "Download Station has no default folder set: downloads will wait" | downloads get added but stay waiting. Open Download Station as this user and set the default folder: each DSM user has their own |
 
 Messages on the Dune after POP UP → "Download to server":
 
 - "No connection to the server": check that the server is on.
 - "The client did not accept the torrent (it may already have it)": look in the client.
 - "The server did not answer in time — check the client": the release may have been added, look in the client.
+- "No download folder set: set it in the server settings or in Download Station": enter a folder in the server block on the settings page or set the default folder in Download Station.
+- "No such folder on the Synology: enter "shared folder/subfolder"": the folder must already exist on the NAS. Enter it as "shared folder/subfolder", for example `video/Torrents`.
+- The messages about access to Download Station, 2-step verification and the blocked address are the same as for "Check", see the table above.
 
 ## Sources
 

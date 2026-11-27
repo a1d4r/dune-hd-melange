@@ -139,6 +139,8 @@ export const CLS = {
   serverCheck: "srvchk",
   serverDup: "srvdup",
   serverResult: "srvr",
+  // The field of the tags of a server block with its label: hidden for Synology Download Station.
+  serverTags: "srvtags",
   jacredBuiltin: "jrb",
   // The time and the releases of a JacRed of "Compare speed" in its card (data-jr: its id or "own").
   jacredSpeed: "ms",
@@ -193,10 +195,11 @@ export const DATA = {
   state: "data-st",
   // The value of the line of the source on the main screen fixed by PHP ("Debrid and 2 more": two sources or more).
   fixed: "data-fixed",
-  // Of a field of a server block by its client (s<n>_type: qbt, tr): of a label - its text, of an input - its
+  // Of a field of a server block by its client (s<n>_type: qbt, tr, syn): of a label - its text, of an input - its
   // placeholder.
   qbt: "data-qbt",
   tr: "data-tr",
+  syn: "data-syn",
 } as const;
 
 export const NAME = {
@@ -254,7 +257,7 @@ export const AIO_SERVER_RADIOS = "input[name=" + NAME.aioServer + "]";
 // The cards of a group of radios (label.opt[for] of each): an error of their name= marks it.
 export const RADIO_GROUP = ".choice";
 
-// A block of a server (qBittorrent WebAPI or Transmission).
+// A block of a server (qBittorrent WebAPI, Transmission or Synology Download Station).
 export const SERVER_BLOCK = "details." + CLS.serverBlock;
 // s<n>_<key>: a field of server block n.
 export const SERVER_FIELD = /^s([1-9])_([a-z]+)$/;

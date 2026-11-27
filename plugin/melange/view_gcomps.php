@@ -675,7 +675,8 @@ function mel_gc_plural($lang, $n, $key)
 // Languages of row $r (variant B, 19.11.2026): its confirmed ones (mel_row_voice_langs 'ok') as up to
 // MEL_GC_LANGS_MAX flags of the skin, a code without a flag as text (MEL_K_PX_CAPTION), the rest as "+N"; one "?"
 // (k_lang_q, in the slot of a flag) for all the guessed ones ('q'); the plate of the subtitles mark
-// (mel_row_subs_mark, k_badge_subs-*) MEL_GC_SUBS_GAP after them. Without a language confirmed or guessed the
+// (mel_row_subs_mark, k_badge_subs-*) MEL_GC_SUBS_GAP after them, none when the language of the mark is among the
+// confirmed ones (subtitles matter without the voice; the card and INFO keep them, mel_row_subs). Without a language confirmed or guessed the
 // senior service code of 'langs' (mel_gc_service_word) as a small plate in place of "?" (k_lang_multi, ...; the
 // owner 20.11.2026, variant B). With a "+N" (more than MEL_GC_LANGS_MAX, or folded by $width) no "?" (the owner
 // 20.11.2026; the card keeps "RU?"). What does not fit $width: the flags go into the "+N" first, the plate stays.
@@ -699,7 +700,9 @@ function mel_gc_lang_items($r, $width)
         $p = MelKit::pic($name);
         $end[] = array('q', $name, $p['w']);
     }
-    $m = strtolower(mel_row_subs_mark($r));
+    $m = mel_row_subs_mark($r);
+    // No mark beside the confirmed voice of its language (the owner 27.11.2026); a guessed one ("?") keeps it.
+    $m = in_array($m, $vl['ok'], true) ? '' : strtolower($m);
     // A plate b2 (k_badge_subs-*); a mark of no picture: none.
     $w = $m !== '' ? MelKit::badges_w(array("subs-$m")) : 0;
     if ($w > 0)
@@ -1081,7 +1084,7 @@ function mel_gc_line_items($st, $lv, $j, $tt, $c, $on, $prog)
     if (mel_gc_on_group($lv, $j))
         return mel_gc_group_items($lv, $tt, $c, $on);
     $i = mel_gc_row_of($lv, $j);
-    return mel_gc_row_items($st['rows'][$i], $tt, $c, $on, mel_gc_share($prog, $st['rows'][$i]));
+    return mel_gc_row_items($st['rows'][$i], $tt, $c, $on, mel_gc_share($prog, $st['rows'][$i], $st));
 }
 
 // Panel "r$j" of line $j (mel_gc_line_items).
@@ -1118,15 +1121,18 @@ function mel_gc_rules($lv)
         MEL_K_C_LINE, 'rule0'));
 }
 
-// Share of the release of a row watched before (mel_wh_progress), or 0.
+// Share of the release of row $r (mel_row_rel) of list $st watched before (mel_wh_progress), or 0 - of a row that
+// does not take the bar of its release too (mel_row_takes_bar).
 /**
  * @param MelProgress $prog
  * @param MelRow $r
+ * @param MelState $st
  * @return float|int
  */
-function mel_gc_share($prog, $r)
+function mel_gc_share($prog, $r, $st)
 {
-    return $r['hash'] !== '' && isset($prog[$r['hash']]) ? $prog[$r['hash']] : 0;
+    $rel = mel_row_rel($r);
+    return $rel !== '' && isset($prog[$rel]) && mel_row_takes_bar($st, $r) ? $prog[$rel] : 0;
 }
 
 // The plate of the focus of the list (panel 'sel', moved by mel_gc_cursor_changes): row_on, MEL_K_ROW_ON_H high in
@@ -1786,8 +1792,8 @@ function mel_gc_changes_act($ch, $sel, $top)
 
 // Back from the player to the kept screen of list $st (mel_finish): the
 // progress read anew (expected: the shell writes the history before this
-// event - one shell log, unverified); the rows of release $hash (one hash
-// may come in several rows: RD and TorBox) redrawn when its share changed,
+// event - one shell log, unverified); the rows of release $hash (mel_row_rel; one
+// may come in several rows: RD and TorBox; mel_row_takes_bar) redrawn when its share changed,
 // else null.
 /**
  * @param MelState $st
@@ -1802,12 +1808,12 @@ function mel_gc_bar_update($st, $hash)
     $rows = array();
     foreach ($st['rows'] as $k => $r)
     {
-        if ($hash !== '' && $r['hash'] === $hash)
+        if ($hash !== '' && mel_row_rel($r) === $hash && mel_row_takes_bar($st, $r))
             $rows[] = $k;
     }
     if (!$rows)
     {
-        mel_log('finish: progress: the release played has no infoHash or is not in the list');
+        mel_log('finish: progress: the release played has no key or is not in the list');
         return null;
     }
     $was = isset($old[$hash]) ? $old[$hash] : 0;

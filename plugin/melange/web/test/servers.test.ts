@@ -109,6 +109,10 @@ describe("Client of a block", () => {
   ];
   const QBT = ["Категория (необязательно)", "Теги через запятую (необязательно)", "http://192.168.1.10:8080"];
   const TR = ["Папка загрузки на сервере (необязательно)", "Метки через запятую (необязательно)", "http://192.168.1.10:9091"];
+  // Download Station has no tags: their field is hidden, its label is of no matter.
+  const SYN = ["Папка загрузки: общая папка/подпапка", "Метки через запятую (необязательно)", "http://192.168.1.10:5000"];
+  const tagsShown = (page: Page, blockNo: number) =>
+    shown(blocks(page)[blockNo - 1]!.querySelector<HTMLElement>("." + CLS.serverTags)!);
 
   test("Transmission chosen: the labels of category and tags, the address placeholder; back to qBittorrent", () => {
     const page = open("filled");
@@ -123,6 +127,34 @@ describe("Client of a block", () => {
     expect(texts(page, 1)).toEqual(QBT);
   });
 
+  test("Synology chosen: the label of the folder, the address placeholder, the tags hidden with their value; back", () => {
+    const page = open("filled");
+    page.type("s1_tags", "a,b");
+    expect(tagsShown(page, 1)).toBe(true);
+    page.type("s1_type", "syn");
+    expect(texts(page, 1)).toEqual(SYN);
+    expect([tagsShown(page, 1), tagsShown(page, 2)]).toEqual([false, true]);
+    expect([value(page, "s1_category"), value(page, "s1_tags")]).toEqual(["movies", "a,b"]);
+    page.type("s1_type", "tr");
+    expect(texts(page, 1)).toEqual(TR);
+    expect([tagsShown(page, 1), value(page, "s1_tags")]).toEqual([true, "a,b"]);
+    page.type("s1_type", "syn");
+    page.type("s1_type", "qbt");
+    expect(texts(page, 1)).toEqual(QBT);
+    expect([tagsShown(page, 1), value(page, "s1_tags")]).toEqual([true, "a,b"]);
+  });
+
+  test("a Synology block of the server (ownconf.html, the fifth): its texts, the tags hidden at load, the stored ones kept", () => {
+    const page = open("ownconf");
+    expect(value(page, "s5_type")).toBe("syn");
+    expect(texts(page, 5)).toEqual(SYN);
+    expect([1, 2, 3, 4, 5].map((blockNo) => tagsShown(page, blockNo))).toEqual([true, true, true, true, false]);
+    expect(value(page, "s5_tags")).toBe("kept");
+    expect(texts(page, 4)).toEqual(QBT);
+    page.type("s5_type", "qbt");
+    expect([tagsShown(page, 5), value(page, "s5_tags")]).toEqual([true, "kept"]);
+  });
+
   test("a client restored by the browser before the script (Back, reload): its texts at load", () => {
     const page = open("filled", {
       before: (doc) => {
@@ -133,12 +165,49 @@ describe("Client of a block", () => {
     expect(texts(page, 2)).toEqual(QBT);
   });
 
+  test("Synology restored by the browser before the script: its texts, the tags hidden at load", () => {
+    const page = open("filled", {
+      before: (doc) => {
+        doc.querySelector<HTMLSelectElement>('[name="s1_type"]')!.value = "syn";
+      },
+    });
+    expect(texts(page, 1)).toEqual(SYN);
+    expect([tagsShown(page, 1), tagsShown(page, 2)]).toEqual([false, true]);
+  });
+
   test("Duplicate of a Transmission block: the client and its texts in the copy", () => {
     const page = open("filled");
     page.type("s1_type", "tr");
     dup(page, 1).click();
     expect(value(page, "s2_type")).toBe("tr");
     expect(texts(page, 2)).toEqual(TR);
+  });
+
+  test("Duplicate of a Synology block: the client, its texts and the hidden tags in the copy", () => {
+    const page = open("filled");
+    page.type("s1_tags", "a");
+    page.type("s1_type", "syn");
+    dup(page, 1).click();
+    expect(value(page, "s2_type")).toBe("syn");
+    expect(texts(page, 2)).toEqual(SYN);
+    expect([tagsShown(page, 2), value(page, "s2_tags")]).toEqual([false, "a"]);
+    // The next copy is of a qBittorrent block again: its tags are back.
+    page.type("s1_type", "qbt");
+    dup(page, 1).click();
+    expect([value(page, "s3_type"), tagsShown(page, 3)]).toEqual(["qbt", true]);
+  });
+
+  test("Check of a Synology block posts type=syn", async () => {
+    const page = open("filled");
+    page.type("s1_type", "syn");
+    const answer = ["OK: вход принят · версия 3.9-4627", "В Download Station не задана папка по умолчанию — закачки будут ждать"];
+    page.replies.push(json({ ok: true, msg: answer.join("\n"), lines: answer }));
+    blocks(page)[0]!.querySelector<HTMLButtonElement>("." + CLS.serverCheck)!.click();
+    await flush();
+    expect(page.calls[0]!.body).toBe(
+      "type=syn&url=http%3A%2F%2F192.168.1.10%3A8080&user=admin&pass=test-pass&category=movies&tags=",
+    );
+    expect(lines(result(page, 1))).toEqual(answer.map((line) => ["ok", line]));
   });
 
   test("Check of a Transmission block posts type=tr", async () => {

@@ -4,13 +4,17 @@
 // POST /api/v2/auth/login, then /api/v2/torrents/add (category, tags). Each push
 // sends: a torrent the client has already is refused by qBittorrent (Fails. /
 // 409), rdt-client returns the one it has (200). Transmission (0.47.0): JSON
-// RPC torrent-add, HTTP Basic, its session id handshake (409).
+// RPC torrent-add, HTTP Basic, its session id handshake (409). Synology
+// Download Station (0.70.1): its Web API, a login and a logout each push.
 // Reads Mel (state, settings). Functions are global; the require order is in
 // main.php.
 
 // Each request: connect, whole (rdt-client with TorBox may be slow to add).
 define('MEL_SRV_CONNECT', 3);
 define('MEL_SRV_TOTAL', 15);
+// All the requests of a push to a Synology (seven at most) fit the 60 s of
+// the operation: each gets what is left of this, MEL_SRV_TOTAL at most.
+define('MEL_SYN_BUDGET', 45);
 
 // Index of the server the cursor starts on: the one standing for the debrid
 // service the row is cached in (a file cached on several: the copy to play
@@ -195,6 +199,149 @@ function mel_trm_add($srv, $magnet)
     return array('added', '', '');
 }
 
+// Total s for the next request of a push to a Synology that ends at $end:
+// what is left, 1 to $max.
+function mel_syn_left($end, $max = MEL_SRV_TOTAL)
+{
+    return max(1, min($max, intval(ceil($end - microtime(true)))));
+}
+
+// The reply $r (mel_syn_req) of step $what, sent at $t, to the log: neither
+// the password nor the sid is there.
+function mel_syn_log($what, $r, $t)
+{
+    mel_log(sprintf('server: syn %s: %s, %.2f s', $what, mel_syn_text($r), microtime(true) - $t));
+}
+
+// A reply (mel_syn_req) that is not ok as array('failed', key, detail): no
+// connection; else key $key for an error code of the API; else not its
+// reply. The detail: mel_syn_text.
+function mel_syn_fail($r, $key)
+{
+    return array('failed', $r['err'] !== '' ? 'srv_err_net' : ($r['api_err'] ? $key : 'srv_err_reply'), mel_syn_text($r));
+}
+
+// The reply $r of a create (DS2 or v1) -> array(status, key, detail).
+function mel_syn_created($r)
+{
+    if ($r['ok'])
+        return array('added', '', '');
+    // Not sent again: it may be there.
+    if (strpos($r['err'], 'curl 28:') === 0)
+        return array('maybe', 'srv_err_timeout', $r['err']);
+    // The folder is under a shared folder and is not created.
+    if ($r['api_err'] === 403)
+        return array('failed', 'srv_err_syn_folder', '');
+    if ($r['api_err'] === 406 || $r['api_err'] === 120)
+        return array('failed', 'srv_err_syn_nodest', '');
+    return mel_syn_fail($r, 'srv_err_rejected');
+}
+
+// The magnet (of the torrent $hash) to the Synology $srv in the session
+// $sid -> array(status, key, detail). A task with the hash in the list ->
+// 'dup': a second create answers "success" and leaves a task with an error
+// there; no list (8 s at most for it: the create keeps its time) -> no such
+// check. The folder: the category, else the default one of Download Station
+// (getconfig; no answer of the API to it -> srv_err_reply), else nothing is
+// sent. Create of DownloadStation2 (its values are JSON), of v1 when there is
+// none or it does not know the method (102, 103, 104); one of the two is in
+// $apis (mel_syn_add).
+function mel_syn_send($srv, $apis, $sid, $magnet, $hash, $end)
+{
+    $t = microtime(true);
+    $r = mel_syn_api($srv, $apis, 'SYNO.DownloadStation.Task', 1, 'list', array('additional' => 'detail'), $sid,
+        MEL_SRV_CONNECT, mel_syn_left($end, 8));
+    mel_syn_log('list', $r, $t);
+    // Cut at MEL_SYN_MAX_BYTES: not JSON any more.
+    if (!$r['ok'] && !$r['api_err'] && $r['err'] === '' && strlen($r['body']) >= MEL_SYN_MAX_BYTES)
+        mel_log('server: syn list: too big, no duplicate check');
+    $tasks = isset($r['data']['tasks']) && is_array($r['data']['tasks']) ? $r['data']['tasks'] : array();
+    foreach ($tasks as $task)
+    {
+        // PHP 5.3: isset() of an offset of an offset of a string is a fatal error.
+        if (!is_array($task) || !isset($task['additional']) || !is_array($task['additional']) ||
+            !isset($task['additional']['detail']) || !is_array($task['additional']['detail']))
+            continue;
+        $uri = isset($task['additional']['detail']['uri']) ? $task['additional']['detail']['uri'] : null;
+        if (is_string($uri) && stripos($uri, "btih:$hash") !== false)
+            return array('dup', 'srv_dup', '');
+    }
+    // Under a shared folder: no slash at its start.
+    $dest = ltrim($srv['category'], '/');
+    if ($dest === '')
+    {
+        $t = microtime(true);
+        $r = mel_syn_api($srv, $apis, 'SYNO.DownloadStation.Info', 1, 'getconfig', array(), $sid, MEL_SRV_CONNECT,
+            mel_syn_left($end));
+        mel_syn_log('getconfig', $r, $t);
+        if (!$r['ok'])
+            return mel_syn_fail($r, 'srv_err_reply');
+        if (isset($r['data']['default_destination']) && is_string($r['data']['default_destination']))
+            $dest = ltrim($r['data']['default_destination'], '/');
+        if ($dest === '')
+            return array('failed', 'srv_err_syn_nodest', '');
+    }
+    $v1 = isset($apis['SYNO.DownloadStation.Task']);
+    if (isset($apis['SYNO.DownloadStation2.Task']) && $apis['SYNO.DownloadStation2.Task']['max'] >= 2)
+    {
+        $t = microtime(true);
+        $r = mel_syn_api($srv, $apis, 'SYNO.DownloadStation2.Task', 2, 'create', array('type' => '"url"',
+            'url' => json_encode(array($magnet)), 'destination' => json_encode($dest), 'create_list' => 'false'), $sid,
+            MEL_SRV_CONNECT, mel_syn_left($end));
+        mel_syn_log('create', $r, $t);
+        if (!$v1 || !in_array($r['api_err'], array(102, 103, 104), true))
+            return mel_syn_created($r);
+    }
+    $t = microtime(true);
+    $r = mel_syn_api($srv, $apis, 'SYNO.DownloadStation.Task', min(3, $apis['SYNO.DownloadStation.Task']['max']), 'create',
+        array('uri' => $magnet, 'destination' => $dest), $sid, MEL_SRV_CONNECT, mel_syn_left($end));
+    mel_syn_log('create v1', $r, $t);
+    return mel_syn_created($r);
+}
+
+// The magnet (of the torrent $hash) to the Synology Download Station $srv
+// -> array(status, key, detail) as mel_trm_add. The paths and the versions
+// of its APIs by mel_syn_query, a login, mel_syn_send, a logout: no session
+// is kept, an error of the logout changes nothing.
+function mel_syn_add($srv, $magnet, $hash)
+{
+    $end = microtime(true) + MEL_SYN_BUDGET;
+    $t = microtime(true);
+    list($r, $apis) = mel_syn_query($srv, MEL_SRV_CONNECT, mel_syn_left($end));
+    mel_syn_log('query', $r, $t);
+    if (!$r['ok'])
+    {
+        $f = mel_syn_fail($r, 'srv_err_reply');
+        // A web page (a wrong port, another service): its start tells.
+        if ($r['err'] === '' && !$r['api_err'])
+            $f[2] = trim("{$f[2]} " . mel_srv_text($r['body']));
+        return $f;
+    }
+    if (!isset($apis['SYNO.API.Auth']))
+        return array('failed', 'srv_err_reply', 'no SYNO.API.Auth');
+    // A DSM without the package (or with it stopped) has no API of the tasks, and refuses the login to its session
+    // with 402, as of a user without the right: no login.
+    if (!isset($apis['SYNO.DownloadStation.Task']) && (!isset($apis['SYNO.DownloadStation2.Task']) ||
+        $apis['SYNO.DownloadStation2.Task']['max'] < 2))
+        return array('failed', 'srv_err_reply', 'no Download Station API');
+    $t = microtime(true);
+    list($r, $sid) = mel_syn_login($srv, $apis, MEL_SRV_CONNECT, mel_syn_left($end));
+    mel_syn_log('login', $r, $t);
+    $keys = array('login' => 'srv_err_login', 'app' => 'srv_err_syn_app', 'otp' => 'srv_err_syn_otp',
+        'blocked' => 'srv_err_syn_blocked');
+    $why = mel_syn_login_why($r);
+    if ($why !== '')
+        return array('failed', $keys[$why], '');
+    if (!$r['ok'])
+        return mel_syn_fail($r, 'srv_err_reply');
+    if ($sid === '')
+        return array('failed', 'srv_err_reply', 'no sid');
+    $res = mel_syn_send($srv, $apis, $sid, $magnet, $hash, $end);
+    $t = microtime(true);
+    mel_syn_log('logout', mel_syn_logout($srv, $apis, $sid, MEL_SRV_CONNECT, mel_syn_left($end, 3)), $t);
+    return $res;
+}
+
 // gc_push of row i to server k -> a dialog: added or why not.
 function mel_srv_push($in)
 {
@@ -212,14 +359,19 @@ function mel_srv_push($in)
     $row = $st['rows'][$i];
     $srv = $servers[$k];
     $lang = $st['lang'];
-    // Not its address: the log is for others to read.
-    $tag = mel_ep_tag($st) . ", row $i, hash {$row['hash']}, server $k" . ($srv['type'] === 'tr' ? ' (Transmission)' : '') .
+    // Not its address: the log is for others to read. No tags of a Synology: they are not sent.
+    $tag = mel_ep_tag($st) . ", row $i, hash {$row['hash']}, server $k" . ($srv['type'] === 'tr' ? ' (Transmission)' : ($srv['type'] === 'syn' ? ' (Synology)' : '')) .
         ($srv['category'] !== '' ? ", category {$srv['category']}" : '') .
-        ($srv['tags'] !== '' ? ", tags {$srv['tags']}" : '');
+        ($srv['tags'] !== '' && $srv['type'] !== 'syn' ? ", tags {$srv['tags']}" : '');
     $ok = array('OK' => mel_close_and(null));
     list($mg, $n, $src) = mel_magnet($row);
     mel_log("server: $tag, $n trackers ($src)");
-    list($status, $key, $detail) = $srv['type'] === 'tr' ? mel_trm_add($srv, $mg) : mel_qbt_add($srv, $mg);
+    if ($srv['type'] === 'tr')
+        list($status, $key, $detail) = mel_trm_add($srv, $mg);
+    else if ($srv['type'] === 'syn')
+        list($status, $key, $detail) = mel_syn_add($srv, $mg, $row['hash']);
+    else
+        list($status, $key, $detail) = mel_qbt_add($srv, $mg);
     if ($status === 'dup')
     {
         mel_log('server: there already');

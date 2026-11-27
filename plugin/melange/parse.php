@@ -34,6 +34,32 @@ define('MEL_DIALOG_LINE', 60);
 // (device 08.10.2026).
 define('MEL_DIALOG_LINE_W', 29000);
 
+// Characters of the start of $s (valid UTF-8) that fit a line of a dialog,
+// $dots: with "..." after them. MEL_DIALOG_LINE at most, and their advances
+// (mel_gc_glyph, no margin: it is in the limit) not over MEL_DIALOG_LINE_W:
+// wide letters fill the line sooner (59 Cyrillic ones with quotes were cut,
+// device 27.11.2026). By characters alone where gcomps.php is not loaded
+// (the settings page, bg/).
+/**
+ * @param string $s
+ * @param bool $dots
+ * @return int
+ */
+function mel_dialog_fit($s, $dots = false)
+{
+    $max = MEL_DIALOG_LINE - ($dots ? 3 : 0);
+    if (!function_exists('mel_gc_glyph'))
+        return $max;
+    $w = $dots ? 3 * mel_gc_glyph('.') : 0;
+    foreach (preg_split('//u', mb_substr($s, 0, $max, 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) as $i => $c)
+    {
+        $w += mel_gc_glyph($c);
+        if ($w > MEL_DIALOG_LINE_W)
+            return max(1, $i);
+    }
+    return $max;
+}
+
 // Text (an error detail) -> at most 3 lines of a dialog, wrapped at spaces;
 // a word longer than a line is cut hard, text past 3 lines ends in "...".
 /**
@@ -42,16 +68,16 @@ define('MEL_DIALOG_LINE_W', 29000);
  */
 function mel_dialog_lines($s)
 {
-    $max = MEL_DIALOG_LINE;
     $out = array();
     // Bad UTF-8 counts differently in mb_strrpos and mb_substr.
     $s = trim(preg_replace('/[ \t\r\n]+/', ' ', mel_utf8($s)));
     while ($s !== '')
     {
         $n = mb_strlen($s, 'UTF-8');
+        $max = mel_dialog_fit($s);
         if ($n <= $max || count($out) === 2)
         {
-            $out[] = $n <= $max ? $s : mel_cut($s, $max - 3);
+            $out[] = $n <= $max ? $s : mel_cut($s, mel_dialog_fit($s, true));
             break;
         }
         $sp = mb_strrpos(mb_substr($s, 0, $max + 1, 'UTF-8'), ' ', 0, 'UTF-8');
@@ -807,6 +833,49 @@ function mel_st_size($st)
     return mel_str($sd, 'size') !== '' ? mel_str($sd, 'size') : mel_str(mel_arr($st, 'behaviorHints'), 'videoSize');
 }
 
+// The key of a release in the rest of a uid (mel_vod_link) and in wh_release: its infoHash, or the key of
+// mel_nf_key of a row of none. A piece of a regular expression, no group of its own.
+define('MEL_REL_RE', '[0-9a-f]{40}|nf-[0-9a-f]{12}');
+
+// $t is a key of MEL_REL_RE.
+/**
+ * @param mixed $t
+ * @return bool
+ */
+function mel_rel_key_ok($t)
+{
+    return is_string($t) && preg_match('/^(?:' . MEL_REL_RE . ')$/D', $t) === 1;
+}
+
+// Key $t of a release (MEL_REL_RE) is that of mel_nf_key, of a row with no infoHash: Debrid only, no way through
+// TorrServer; several files of its release may come as rows of one key (mel_row_takes_bar).
+/**
+ * @param string $t
+ * @return bool
+ */
+function mel_rel_nf($t)
+{
+    return strncmp($t, 'nf-', 3) === 0;
+}
+
+// The key of stream $st of a reply with no infoHash, "nf-<12 hex>": of the name of its release and the size. The name:
+// of a pack its folder (streamData.folderName; there the size is of the whole release: one key for all its episodes,
+// as an infoHash), else that of the file - one release comes with its name as the folder of one episode and as the
+// file, no folder, of another: one key. No size: the name of the file alone (a folder with no size is not taken:
+// several releases share one). The names as mel_str gives them (trimmed, in UTF-8), the size in bytes. '' no name.
+/**
+ * @param array<mixed> $st
+ * @return string
+ */
+function mel_nf_key($st)
+{
+    $size = mel_num(mel_st_size($st));
+    $size = $size > 0 ? sprintf('%.0f', $size) : '';
+    $folder = mel_str(mel_arr($st, 'streamData'), 'folderName');
+    $name = $folder !== '' && $size !== '' ? $folder : mel_st_file($st);
+    return $name !== '' ? 'nf-' . substr(md5($name . "\x00" . $size), 0, 12) : '';
+}
+
 // Path $path names a video file, by its extension (files of TorrServer, mel_merge_key).
 /**
  * @param string $path
@@ -892,6 +961,20 @@ function mel_row_use($r, $i)
     }
     $r['copy'] = $i;
     return $r;
+}
+
+// What tells the release of row $r from the others of its list (MEL_REL_RE): its infoHash, else the key of
+// mel_nf_key of its stream - of the first copy of a row of copies, whichever is on top (mel_row_use); '' none.
+// For "the same release" (the uid, the cursor, the bar, "Continue"); a torrent needs $r['hash'] itself.
+/**
+ * @param MelRow $r
+ * @return string
+ */
+function mel_row_rel($r)
+{
+    if ($r['hash'] !== '')
+        return $r['hash'];
+    return mel_nf_key(isset($r['copies'][0]) ? $r['copies'][0]['raw'] : $r['raw']);
 }
 
 // Names of the services of row $r: of the copy on top, then of the others in

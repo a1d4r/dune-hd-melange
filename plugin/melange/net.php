@@ -1,11 +1,11 @@
 <?php
 // HTTP clients shared by the plugin (php_server) and the settings page
 // (cgi/settings.php, php-cgi as root): TorrServer, the Transmission RPC,
-// Lampac, the loop of curl_multi (mel_net_multi: mel_http_get_many of
+// the Web API of Synology Download Station, Lampac, the loop of curl_multi (mel_net_multi: mel_http_get_many of
 // main.php, mel_lp_get_many) and the body of a GET (MelHttpSink). Plain PHP
 // 5.3: no firmware API, no logging here.
 // Needs common.php (MEL_VERSION, MEL_CA_BUNDLE); tests define their own
-// mel_ts_call(), mel_trm_call(), mel_lp_get() and mel_lp_get_many().
+// mel_ts_call(), mel_trm_call(), mel_syn_call(), mel_lp_get() and mel_lp_get_many().
 // Types in the PHPDoc (MelServer): phpstan-types.neon of the repository.
 
 // The Transmission RPC address of a stored server address: no path ->
@@ -106,6 +106,227 @@ if (!function_exists('mel_trm_call'))
             $sid = $got;
         }
     }
+}
+
+// A bigger reply of Synology is cut there (the list of its tasks: ~1-2 KB a task).
+define('MEL_SYN_MAX_BYTES', 1048576);
+
+// Tests define their own mel_syn_call().
+if (!function_exists('mel_syn_call'))
+{
+    // GET ($post null) or POST of the form $post (name => value) to the Web
+    // API of a Synology -> array(code: HTTP code, body: its first
+    // MEL_SYN_MAX_BYTES ('' on a transport error), err: the transport error
+    // ('' none), errno: curl errno (0 none, -1 its options refused)). The
+    // form by rawurlencode: its v1 API reads "+" as a plus. http and https,
+    // no redirects, no "Expect: 100-continue". No log here: the form carries
+    // the password or the sid. The plugin and the settings page.
+    /**
+     * @param string $url
+     * @param array<string, string>|null $post
+     * @param int $connect
+     * @param int $total
+     * @return MelSynCall
+     */
+    function mel_syn_call($url, $post, $connect, $total)
+    {
+        $body = '';
+        $opts = array(
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_CONNECTTIMEOUT => $connect,
+            CURLOPT_TIMEOUT => $total,
+            CURLOPT_CAINFO => MEL_CA_BUNDLE,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_USERAGENT => 'Melange-Dune/' . MEL_VERSION,
+            CURLOPT_HTTPHEADER => array('Expect:'),
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body)
+            {
+                if (strlen($body) < MEL_SYN_MAX_BYTES)
+                    $body .= substr($chunk, 0, MEL_SYN_MAX_BYTES - strlen($body));
+                return strlen($chunk);
+            });
+        if (!is_null($post))
+        {
+            $f = array();
+            foreach ($post as $k => $v)
+                $f[] = rawurlencode($k) . '=' . rawurlencode($v);
+            $opts[CURLOPT_POST] = true;
+            $opts[CURLOPT_POSTFIELDS] = implode('&', $f);
+        }
+        $ch = curl_init($url);
+        if (!curl_setopt_array($ch, $opts))
+        {
+            curl_close($ch);
+            return array('code' => 0, 'body' => '', 'err' => 'curl options refused', 'errno' => -1);
+        }
+        $ok = curl_exec($ch);
+        $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+        $errno = $ok === false ? curl_errno($ch) : 0;
+        $err = $ok === false ? "curl $errno: " . curl_error($ch) : '';
+        curl_close($ch);
+        return array('code' => $code, 'body' => $err !== '' ? '' : $body, 'err' => $err, 'errno' => $errno);
+    }
+}
+
+// A request of mel_syn_call read as the Web API answers (HTTP 200, JSON
+// {"success":true,"data":...} or {"success":false,"error":{"code":N}}) ->
+// array(ok: success, data: its data (array() none), api_err: its error code
+// (0 none), err: the transport error ('' none), errno: of curl (0 none), http:
+// HTTP code, body). Neither ok, api_err nor err: not a reply of the Web API (a
+// wrong address).
+/**
+ * @param string $url
+ * @param array<string, string>|null $post
+ * @param int $connect
+ * @param int $total
+ * @return MelSynReply
+ */
+function mel_syn_req($url, $post, $connect, $total)
+{
+    $r = mel_syn_call($url, $post, $connect, $total);
+    $out = array('ok' => false, 'data' => array(), 'api_err' => 0, 'err' => $r['err'], 'errno' => $r['errno'], 'http' => $r['code'],
+        'body' => $r['body']);
+    $j = $r['err'] === '' && $r['code'] === 200 ? json_decode($r['body'], true) : null;
+    if (!is_array($j) || !isset($j['success']) || !is_bool($j['success']))
+        return $out;
+    $out['ok'] = $j['success'];
+    if ($j['success'] && isset($j['data']) && is_array($j['data']))
+        $out['data'] = $j['data'];
+    if (!$j['success'] && isset($j['error']) && is_array($j['error']) && isset($j['error']['code']) && is_int($j['error']['code']))
+        $out['api_err'] = $j['error']['code'];
+    return $out;
+}
+
+// The reply $r (mel_syn_req, mel_syn_api) in a word, for the log and the
+// detail of an error: ok | the transport error (curl N: ...) | error N (of the
+// API) | HTTP N (not a reply of the Web API) | no api (mel_syn_api sent
+// nothing).
+/**
+ * @param MelSynReply $r
+ * @return string
+ */
+function mel_syn_text($r)
+{
+    if ($r['err'] !== '')
+        return $r['err'];
+    if ($r['ok'])
+        return 'ok';
+    if ($r['api_err'])
+        return "error {$r['api_err']}";
+    return $r['http'] ? "HTTP {$r['http']}" : 'no api';
+}
+
+// The APIs of the Synology $srv (mel_server_conf; its url is the base,
+// /webapi/... is added here) by SYNO.API.Info, no login -> array(the reply
+// of mel_syn_req, name => array(path under /webapi/, max: its last version))
+// of SYNO.API.Auth, SYNO.DownloadStation.Task (v1), SYNO.DownloadStation2.Task
+// and SYNO.DownloadStation.Info: those it has.
+/**
+ * @param MelServer $srv
+ * @param int $connect
+ * @param int $total
+ * @return array{0: MelSynReply, 1: MelSynApis}
+ */
+function mel_syn_query($srv, $connect, $total)
+{
+    $r = mel_syn_req($srv['url'] . '/webapi/query.cgi?api=SYNO.API.Info&version=1&method=query&query=' .
+        'SYNO.API.Auth,SYNO.DownloadStation.Task,SYNO.DownloadStation2.Task,SYNO.DownloadStation.Info', null, $connect, $total);
+    $apis = array();
+    foreach ($r['data'] as $k => $a)
+    {
+        if (is_string($k) && is_array($a) && isset($a['path']) && is_string($a['path']) && isset($a['maxVersion']) &&
+            is_int($a['maxVersion']) && preg_match('~^[A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)*\z~', $a['path']) &&
+            strpos($a['path'], '..') === false)
+            $apis[$k] = array('path' => $a['path'], 'max' => $a['maxVersion']);
+    }
+    return array($r, $apis);
+}
+
+// Method $method of the API $api (version $version, the fields $args) of
+// the Synology $srv at its path of $apis (mel_syn_query), with the sid of a
+// login ('' none) -> the reply of mel_syn_req; an API not in $apis: no
+// request, a reply with neither ok, api_err nor err, http 0 ("no api" of
+// mel_syn_text).
+/**
+ * @param MelServer $srv
+ * @param MelSynApis $apis
+ * @param string $api
+ * @param int $version
+ * @param string $method
+ * @param array<string, string> $args
+ * @param string $sid
+ * @param int $connect
+ * @param int $total
+ * @return MelSynReply
+ */
+function mel_syn_api($srv, $apis, $api, $version, $method, $args, $sid, $connect, $total)
+{
+    if (!isset($apis[$api]))
+        return array('ok' => false, 'data' => array(), 'api_err' => 0, 'err' => '', 'errno' => 0, 'http' => 0, 'body' => '');
+    $f = array('api' => $api, 'version' => strval($version), 'method' => $method) + $args;
+    if ($sid !== '')
+        $f['_sid'] = $sid;
+    return mel_syn_req("{$srv['url']}/webapi/{$apis[$api]['path']}", $f, $connect, $total);
+}
+
+// The version of SYNO.API.Auth to log in and out with (as Sonarr).
+/**
+ * @param MelSynApis $apis
+ * @return int
+ */
+function mel_syn_auth_version($apis)
+{
+    return isset($apis['SYNO.API.Auth']) && $apis['SYNO.API.Auth']['max'] >= 6 ? 6 : 2;
+}
+
+// Login of $srv to the session DownloadStation -> array(the reply of
+// mel_syn_api, the sid ('' none)). Its error codes: mel_syn_login_why. No
+// session is kept: mel_syn_logout after the work.
+/**
+ * @param MelServer $srv
+ * @param MelSynApis $apis
+ * @param int $connect
+ * @param int $total
+ * @return array{0: MelSynReply, 1: string}
+ */
+function mel_syn_login($srv, $apis, $connect, $total)
+{
+    $r = mel_syn_api($srv, $apis, 'SYNO.API.Auth', mel_syn_auth_version($apis), 'login', array('account' => $srv['user'],
+        'passwd' => $srv['pass'], 'session' => 'DownloadStation', 'format' => 'sid'), '', $connect, $total);
+    $sid = $r['ok'] && isset($r['data']['sid']) && is_string($r['data']['sid']) ? $r['data']['sid'] : '';
+    return array($r, $sid);
+}
+
+// Why the login of the reply $r (mel_syn_login) was refused, by its error
+// code: 'login' (400 a wrong login or password, 401 the account is off),
+// 'app' (402 no right to Download Station), 'otp' (the 2-step verification:
+// 403 of the user, 406 required for all), 'blocked' (407: DSM blocks the
+// address after wrong passwords, the right one too), '' (none of these).
+/**
+ * @param MelSynReply $r
+ * @return string
+ */
+function mel_syn_login_why($r)
+{
+    $why = array(400 => 'login', 401 => 'login', 402 => 'app', 403 => 'otp', 406 => 'otp', 407 => 'blocked');
+    return isset($why[$r['api_err']]) ? $why[$r['api_err']] : '';
+}
+
+// The end of the session $sid of mel_syn_login.
+/**
+ * @param MelServer $srv
+ * @param MelSynApis $apis
+ * @param string $sid
+ * @param int $connect
+ * @param int $total
+ * @return MelSynReply
+ */
+function mel_syn_logout($srv, $apis, $sid, $connect, $total)
+{
+    return mel_syn_api($srv, $apis, 'SYNO.API.Auth', mel_syn_auth_version($apis), 'logout', array('session' => 'DownloadStation'),
+        $sid, $connect, $total);
 }
 
 // A bigger reply is not read (a pack of thousands of files is ~1 MB).

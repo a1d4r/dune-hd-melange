@@ -571,7 +571,8 @@ function mel_seasons($m)
 // "Continue watching" -> shell_ext play_recent -> our play_action with
 // supplier_info = {sup_data, wh_uid, wh_s, wh_e, wh_pos, wh_len (seconds), wh_*}; on r25
 // the button "Melange NN%" (play_online) too: mel_play_action takes its profile only.
-// 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else;
+// 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else; 'hash' of them: the infoHash, of
+// 'debrid' the key of a row of none too (nf-…, mel_row_rel: no way through TorrServer);
 // 'lampac' of an online record (online_play.php): 'hash' its key as it is, of no format
 // checked here (mel_lp_find of mel_lpv_resume does: bad_key, the search window); 'local' of
 // a copy of the media library (mel_lib_play): 'hash' its key lib-<12 hex>, none else.
@@ -596,7 +597,7 @@ function mel_resume($in)
     else if ($mode === 'lampac')
         $ok = true;
     else
-        $ok = preg_match('/^[0-9a-f]{40}$/', $rel) === 1;
+        $ok = mel_rel_key_ok($rel) && ($mode === 'debrid' || !mel_rel_nf($rel));
     if (!$ok)
         return null;
     return array(
@@ -2200,6 +2201,13 @@ function mel_play_action($in, $hist = null, $src = '')
         $tag = "resume: release {$resume['hash']} mode=" . ($mode !== '' ? $mode : 'none');
         $pick = $resume['next'] ? mel_release_pick($st['rows'], $resume['hash'], $s, $e, mel_cin_n($mv['cin'], $s, $e)) :
             mel_release_pick($st['rows'], $resume['hash'], -1, -1);
+        // A key of a row of no infoHash: several files of its release come as rows of it (mel_row_takes_bar) - the one
+        // with the episode, if any.
+        if (!$resume['next'] && $e > 0 && mel_rel_nf($resume['hash']))
+        {
+            $ep = mel_release_pick($st['rows'], $resume['hash'], $s, $e, mel_cin_n($mv['cin'], $s, $e));
+            $pick = $ep['deb'] >= 0 ? $ep : $pick;
+        }
         $deb = $mode !== 'ts' && $pick['deb'] >= 0 ? $st['rows'][$pick['deb']] : null;
         $pre = null;
         if ($deb && $deb['cached'] !== true)
