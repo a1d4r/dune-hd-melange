@@ -1114,6 +1114,24 @@ function mel_lpv_pos_keep($in, $st)
     return $pos;
 }
 
+// The keys of the screen of the online list of rid $rid every such list has: the cursor, ENTER, MENU, back from the
+// player. By the rid only: the screen of a list gone has them too (mel_gc_scr_in).
+/**
+ * @param string $rid
+ * @return array<string, MelAction>
+ */
+function mel_lpv_keys($rid)
+{
+    return array(
+        GUI_EVENT_KEY_UP => mel_gc_act('lp_move', $rid, array('d' => 'up')),
+        GUI_EVENT_KEY_DOWN => mel_gc_act('lp_move', $rid, array('d' => 'down')),
+        GUI_EVENT_KEY_P_PLUS => mel_gc_act('lp_move', $rid, array('d' => 'pgup')),
+        GUI_EVENT_KEY_P_MINUS => mel_gc_act('lp_move', $rid, array('d' => 'pgdn')),
+        GUI_EVENT_KEY_ENTER => mel_gc_act('lp_pick', $rid),
+        GUI_EVENT_MENU_PLAYBACK_FINISH => mel_finish_act($rid),
+        GUI_EVENT_KEY_POPUP_MENU => mel_gc_act('lp_menu', $rid));
+}
+
 // The keys of the online list $st of lines $L and the items of its hint line (MelKit::hint), one for both: the cursor,
 // ENTER, MENU "Действия"; the green key (mel_lpv_fold_all), of a list with a balancer of 2 rows; «P+ P−» "Прокрутка" with more lines than the screen; the
 // yellow key, the order of the balancers, of a list with rows (its tab, mel_lpv_tabs); the red key, the filter by
@@ -1128,14 +1146,7 @@ function mel_lpv_screen($st, $L)
 {
     $rid = $st['rid'];
     $tt = mel_gc_text(mel_gc_lang($st));
-    $acts = array(
-        GUI_EVENT_KEY_UP => mel_gc_act('lp_move', $rid, array('d' => 'up')),
-        GUI_EVENT_KEY_DOWN => mel_gc_act('lp_move', $rid, array('d' => 'down')),
-        GUI_EVENT_KEY_P_PLUS => mel_gc_act('lp_move', $rid, array('d' => 'pgup')),
-        GUI_EVENT_KEY_P_MINUS => mel_gc_act('lp_move', $rid, array('d' => 'pgdn')),
-        GUI_EVENT_KEY_ENTER => mel_gc_act('lp_pick', $rid),
-        GUI_EVENT_MENU_PLAYBACK_FINISH => mel_finish_act($rid),
-        GUI_EVENT_KEY_POPUP_MENU => mel_gc_act('lp_menu', $rid));
+    $acts = mel_lpv_keys($rid);
     if (mel_lpv_can($st, $L, 'green', 'key'))
         $acts[GUI_EVENT_KEY_B_GREEN] = mel_gc_act('lp_fold', $rid);
     $hint = count($L) > MEL_GC_VIS ? array(array('pp', $tt['page'])) : array();

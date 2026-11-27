@@ -2102,9 +2102,44 @@ function mel_oc_menu_lost($key, $raw)
     }
     mel_log("card: own $key: menu of no card, settings only");
     $lang = mel_catv_ui_lang();
-    return mel_kp_open(array('owner' => $key, 'map' => mel_oc_keys($key) + mel_mlv_key_acts("card:$key"),
-        'timer' => null, 'sel' => is_string($raw) ? $raw : null),
+    return mel_kp_open(mel_oc_scr_lost($key, $raw),
         array('title' => mel_tr($lang, 'gc_actions'), 'groups' => array(array(mel_setup_item($lang)))));
+}
+
+// The record of the screen of no card (key $key: not in memory, no meta): the keys of every card (mel_oc_keys), no
+// timer, the sel_state $raw the shell sent.
+/**
+ * @param string $key
+ * @param mixed $raw
+ * @return MelOvlScreen
+ */
+function mel_oc_scr_lost($key, $raw)
+{
+    return array('owner' => $key, 'map' => mel_oc_keys($key) + mel_mlv_key_acts("card:$key"), 'timer' => null,
+        'sel' => is_string($raw) ? $raw : null);
+}
+
+// The record of the screen of the own card whose own input $in of control $control is: a key of its map, the action
+// of an item of its panel or of the window of the copies (after the close), the trailer ENTER asks for (mel_ct_enter)
+// - the reply to it is shown over the card itself (mel_scr_of, main.php). null: a bad key, or an input not of the
+// screen (its timer card_load, card_finish of the player). The card in memory: by its layout shown (nav; made anew
+// since: laid out) at its place kept; none: mel_oc_scr_lost.
+/**
+ * @param stdClass $in
+ * @param string $control
+ * @return MelOvlScreen|null
+ */
+function mel_oc_scr_in($in, $control)
+{
+    static $own = array('card_move', 'card_enter', 'card_menu', 'card_trailer', 'card_src', 'card_mark', 'card_mark_movie',
+        'card_lib_copies', 'card_lib_copy');
+    $key = mel_catv_in($in, 'c');
+    if (!in_array($control, $own, true) || !mel_oc_key_ok($key))
+        return null;
+    if (!isset(MelOc::$cards[$key]))
+        return mel_oc_scr_lost($key, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    $c = MelOc::$cards[$key];
+    return mel_oc_scr_of($key, $c, isset($c['nav']) ? $c['nav'] : mel_oc_layout($c), $c['pos']);
 }
 
 // card_finish (GUI_EVENT_MENU_PLAYBACK_FINISH of the screen of card $c, $key; after STOP; the caller drops its overlay,

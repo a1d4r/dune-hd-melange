@@ -247,6 +247,9 @@ class Mel
     // The zlib function of MelQrPng (in libphp5 of r24 and r25, not known for
     // older ones): mel_qr_file makes no picture without it. Tests name a missing one.
     public static $zlib = 'gzcompress';
+    // The reply to this input stays a window of the shell (mel_dlg_of): set by the code that builds a window with no
+    // look of ours approved for it; off at the start of every handle_user_input.
+    public static $shell_win = false;
 }
 
 // --- Log: /tmp/run/melange.log (stdout of php_server).
@@ -2451,6 +2454,65 @@ function mel_ctl($name, $kind, $def, $title = null)
         GuiControlDef::params => null);
 }
 
+// --- The windows of the shell as dialogs of our own over our screens (UI kit; kit_dlg.php).
+
+// The record (MelOvlScreen, kit_ovl.php) of the screen with an overlay whose own input $in of control $control is, its
+// reply shown over it: the list of releases or the online list (mel_gc_scr_in), the own card (mel_oc_scr_in). null: of
+// none of them (the rows, the card of the Dune, the player, a window of the shell, a screen with no overlay: a person,
+// the files of TorrServer), or its overlay is open (nothing of the screen comes under it).
+/**
+ * @param stdClass $in
+ * @param mixed $control
+ * @return MelOvlScreen|null
+ */
+function mel_scr_of($in, $control)
+{
+    if (!is_string($control))
+        return null;
+    $scr = strpos($control, 'card_') === 0 ? mel_oc_scr_in($in, $control) : mel_gc_scr_in($in, $control);
+    return $scr && !mel_ovl_open_on($scr['owner']) ? $scr : null;
+}
+
+// Window $a of the shell that says one thing and only closes -> array(its title, its text, the caption of its
+// button), null: another action. plugin_show_error that does not stop the player (mel_error: its title a key of
+// translations/, in the language of the shell as %tr% gives it, or a text; its lines).
+/**
+ * @param mixed $a
+ * @return array{string, string, string}|null
+ */
+function mel_dlg_simple($a)
+{
+    $h = is_array($a) && isset($a[GuiAction::handler_string_id]) ? $a[GuiAction::handler_string_id] : '';
+    $d = $h !== '' && isset($a[GuiAction::data]) && is_array($a[GuiAction::data]) ? $a[GuiAction::data] : array();
+    if ($h === PLUGIN_SHOW_ERROR_ACTION_ID)
+    {
+        if (!empty($d[PluginShowErrorActionData::stop_playback]) || !isset($d[PluginShowErrorActionData::title]))
+            return null;
+        $t = strval($d[PluginShowErrorActionData::title]);
+        $lines = isset($d[PluginShowErrorActionData::msg_lines]) ? $d[PluginShowErrorActionData::msg_lines] : null;
+        return array(strpos($t, '%tr%') === 0 ? mel_tr(mel_catv_lang(), substr($t, 4)) : $t,
+            is_array($lines) ? implode(' ', $lines) : '', 'OK');
+    }
+    return null;
+}
+
+// Reply $a to input $in of control $control: a window of the shell that only says and closes (mel_dlg_simple), to an
+// own input of a screen with an overlay (mel_scr_of) - the simple dialog of ours over that screen (mel_dlg_error: the
+// title, the text of its lines, its button); else, or Mel::$shell_win, $a as it is.
+/**
+ * @param stdClass $in
+ * @param mixed $control
+ * @param MelAction|null $a
+ * @return MelAction|null
+ */
+function mel_dlg_of($in, $control, $a)
+{
+    $w = Mel::$shell_win ? null : mel_dlg_simple($a);
+    $scr = $w ? mel_scr_of($in, $control) : null;
+    $d = $scr && $w ? mel_dlg_error($scr, $w[2], $w[0], $w[1]) : null;
+    return $d ? $d : $a;
+}
+
 // --- Dispatcher.
 
 function mel_handle_user_input($in)
@@ -2594,7 +2656,10 @@ class MelFw extends DunePluginFw
             else if ($op === PLUGIN_OP_HANDLE_USER_INPUT)
             {
                 $type = PLUGIN_OUT_DATA_GUI_ACTION;
+                Mel::$shell_win = false;
                 $data = mel_handle_user_input($in);
+                // An error or a message with OK over a screen of ours: its own dialog (mel_dlg_of).
+                $data = mel_dlg_of($in, isset($in->control_id) ? $in->control_id : null, $data);
                 // "next", "lp_next" and "lib_next", a lazy episode under the player (mel_lazy_action): its vod_play
                 // not sooner than MEL_NEXT_MIN (mel_lazy_hold; "lazy_reply" is held already: its reply kept by
                 // mel_lazy_url, anew by mel_lazy_replied); no pf_check of them - the player is on, pf_check passed with

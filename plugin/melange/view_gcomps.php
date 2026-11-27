@@ -1566,6 +1566,44 @@ function mel_gc_scr($rid, $acts, $sel)
     return array('owner' => $rid, 'map' => $acts + mel_mlv_key_acts("streams:$rid"), 'timer' => null, 'sel' => $sel);
 }
 
+// The record of the screen (mel_gc_scr) of the list of releases or the online list whose own input $in of control
+// $control is: a key of its map or the action of an item of its panel (it comes after the close) - the reply to it is
+// shown over the list itself (mel_scr_of, main.php). null: no rid, or an input not of the screen - of a window of the
+// shell over it (its ticks and buttons: ts_tick, lp_tick, lp_cancel, lp_find, pre_via), of the player (finish, next,
+// lp_next), of the screen of the seasons (gc_chosen, lp_chosen). A live list: as its view has it (mel_gc_screen,
+// mel_lpv_screen), the cursor of the sel_state of the input, else its last one; a list gone (replaced, php_server
+// restarted): as mel_gc_menu has it - the keys by the rid (of the online list by the control), the sel_state sent.
+/**
+ * @param stdClass $in
+ * @param string $control
+ * @return MelOvlScreen|null
+ */
+function mel_gc_scr_in($in, $control)
+{
+    static $own = array('gc_move', 'gc_pick', 'gc_info', 'gc_menu', 'gc_flip', 'gc_sort', 'gc_refresh', 'gc_main', 'gc_src',
+        'gc_choose', 'gc_dl', 'gc_push', 'gc_ts', 'lp_move', 'lp_pick', 'lp_menu', 'lp_flt_menu', 'lp_flt_done', 'lp_fold',
+        'lp_qsort', 'lp_flip', 'lp_choose', 'lp_refresh', 'lp_srcs_done');
+    $rid = isset($in->rid) && is_string($in->rid) ? $in->rid : '';
+    if ($rid === '' || !in_array($control, $own, true))
+        return null;
+    $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;
+    $st = Mel::$state;
+    if (!$st || $st['rid'] !== $rid)
+        return mel_gc_scr($rid, strpos($control, 'lp_') === 0 ? mel_lpv_keys($rid) : mel_gc_keys($rid, false),
+            is_string($raw) ? $raw : null);
+    if (!empty($st['lp_on']) && isset($st['lp']))
+    {
+        list($sel, $top) = mel_lpv_pos($st['lp'], $raw);
+        list($acts) = mel_lpv_screen($st, mel_lpv_lines($st['lp']));
+    }
+    else
+    {
+        list($sel, $top) = mel_gc_pos($st, $raw);
+        list($acts) = mel_gc_screen($st, $sel);
+    }
+    return mel_gc_scr($rid, $acts, mel_gc_state($sel, $top));
+}
+
 // Panel 'hint' of the hint line of list $st (mel_gc_screen; from MEL_GC_LX on MEL_GC_HINT_MID) with the cursor on line
 // $j: at 0, 0, its children in the coordinates of the screen; a step that comes to the group or leaves it replaces them
 // (mel_gc_input).
