@@ -16,13 +16,13 @@ Choose whether Melange starts torrents, shows skip-intro buttons and reports add
 
 4. "Addon errors": turn it on if there are few releases or none. The number of errors appears above the release list; **POP UP** → "Addon errors" shows the reasons.
 
-   <img src="../screenshots/advanced-errors-menu.jpg" alt="Release list for Resident Evil: Errors: 1 at the top right, the menu is open, focus on Addon errors" width="100%">
+   <img src="../screenshots/advanced-errors-menu.jpg" alt="Release list for Resident Evil: The Final Chapter, the Actions panel on the right, focus on Addon errors" width="100%">
 
-   <img src="../screenshots/advanced-errors.jpg" alt="Addon errors window: JacRed did not answer in time" width="100%">
+   <img src="../screenshots/advanced-errors.jpg" alt="The Addon errors panel: JacRed did not answer in time" width="100%">
 
-5. "Remote without colour buttons": turn it on if your remote has no colour buttons or INFO. Then the **POP UP** menu of the release list starts with "Release details". "Sort" is always in that menu, and choosing the current sort again reverses the order.
+5. "Remote without colour buttons": turn it on if your remote has no colour buttons or INFO. Then the "Actions" panel (**POP UP**) of the release list starts with "Release details". "Sort" is always in that panel, and choosing the current sort again reverses the order.
 
-   <img src="../screenshots/advanced-remote-menu.jpg" alt="Release list for Avatar: The Last Airbender (2026): the menu is open, focus on Release details, then Sort: Auto, Refresh, Get films from..., Watch via TorrServer, Open in an app..., Download to server..., Settings" width="100%">
+   <img src="../screenshots/advanced-remote-menu.jpg" alt="Release list for Dune: Part Two (2024), the Actions panel on the right: focus on Release details, then Watch via TorrServer, Open in an app, Download to server, Sort, Source, Refresh list, Melange settings" width="100%">
 
 6. Press "Save".
 

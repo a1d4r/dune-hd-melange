@@ -18,11 +18,11 @@ Add several sources (Debrid, torrents, your own config) and open a movie on the 
 
 4. On the Dune, open a movie and press **POP UP** in the release list → "Source".
 
-   <img src="../screenshots/profiles-menu.jpg" alt="Release list for Dune: Part Two, menu open, focus on Get films from…" width="100%">
+   <img src="../screenshots/profiles-menu.jpg" alt="Release list for Dune: Part Two (2024), the Actions panel on the right, focus on Source" width="100%">
 
 5. Choose a source. The release list reloads from it. The choice applies to this screen only and is not remembered.
 
-   <img src="../screenshots/profiles-pick.jpg" alt="Window with a list of sources, focus on Debrid (Melange) · now" width="100%">
+   <img src="../screenshots/profiles-pick.jpg" alt="The Source panel with a list of sources, focus on Debrid (Melange) with a check mark" width="100%">
 
    You can also pick the source before the release list: press **POP UP** on a movie tile or on its Melange card → "Watch from". The list opens from that source right away. If the movie is on your disk, "Watch" plays the file, and this is the only way to pick a source ([Movies and series from your disk](library.en.md)).
 

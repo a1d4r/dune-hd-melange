@@ -16,11 +16,11 @@ You need: a torrent client with its web UI turned on.
 
 3. On the Dune, in the release list, move to a release and press **POP UP** → "Download to server".
 
-   <img src="../screenshots/download-server-menu.jpg" alt="Release list for Dune: Part Two, the POP UP menu is open, focus on Download to server…" width="100%">
+   <img src="../screenshots/download-server-menu.jpg" alt="Release list for Dune: Part Two (2024), the Actions panel on the right, focus on Download to server" width="100%">
 
 4. Choose the server. You will see "Added to <name>".
 
-   <img src="../screenshots/download-server-pick.jpg" alt="A window with the list of servers: qBittorrent, rdt-client TB, rdt-client RD, Transmission MacOS; focus on rdt-client TB" width="100%">
+   <img src="../screenshots/download-server-pick.jpg" alt="The Download to server panel with the list of servers: qBittorrent, rdt-client TB, rdt-client RD, Transmission MacOS; focus on rdt-client RD" width="100%">
 
    <img src="../screenshots/download-server-added.jpg" alt="Message Added to rdt-client TB with an OK button" width="100%">
 

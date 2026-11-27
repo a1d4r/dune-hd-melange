@@ -42,7 +42,7 @@ No subscription yet? Get one through the author's link to support Melange: [Real
 
 8. A release without a lightning bolt can play via TorrServer: move to it, press **POP UP** and choose "Watch via TorrServer". This needs TorrServe on the Dune. To install it, see [Quick start](start.en.md#via-dune-backup), step 5; to set it up, [First setup](start.en.md#first-setup), step 1.
 
-   <img src="../screenshots/debrid-menu-torrserver.jpg" alt="Release list for Dune: Part Two, menu open, focus on Watch via TorrServer" width="100%">
+   <img src="../screenshots/debrid-menu-torrserver.jpg" alt="Release list for Dune: Part Two (2024): releases without a lightning bolt at the top, the Actions panel on the right, focus on Watch via TorrServer" width="100%">
 
 ## If it didn't work
 

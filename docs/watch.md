@@ -20,7 +20,7 @@
 
 5. Обычно секунд через 10 окно «Открываю через TorrServer» сменится плеером.
 
-   <img src="../screenshots/torrserver-open.jpg" alt="Окно «Открываю через TorrServer»" width="100%">
+   <img src="../screenshots/torrserver-open.jpg" alt="Окно «Открываю через TorrServer» поверх списка раздач" width="100%">
 
    Через минуту не началось — выберите раздачу с большим числом сидов.
 

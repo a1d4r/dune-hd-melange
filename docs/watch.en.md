@@ -20,7 +20,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
 5. Usually in about 10 seconds the "Opening via TorrServer" window gives way to the player.
 
-   <img src="../screenshots/torrserver-open.jpg" alt="The Opening via TorrServer window" width="100%">
+   <img src="../screenshots/torrserver-open.jpg" alt="The Opening via TorrServer window over the release list" width="100%">
 
    If nothing starts within a minute, choose a release with more seeders.
 

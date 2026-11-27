@@ -16,11 +16,11 @@
 
 3. На Дюне в списке раздач встаньте на раздачу и нажмите **POP UP** → «Скачать на сервер».
 
-   <img src="../screenshots/download-server-menu.jpg" alt="Список раздач «Дюна: Часть вторая», открыто меню POP UP, фокус на «Скачать на сервер…»" width="100%">
+   <img src="../screenshots/download-server-menu.jpg" alt="Список раздач «Дюна: Часть вторая (2024)», справа панель «Действия», фокус на «Скачать на сервер»" width="100%">
 
 4. Выберите сервер. Появится «Добавлено в <название>».
 
-   <img src="../screenshots/download-server-pick.jpg" alt="Окно со списком серверов: qBittorrent, rdt-client TB, rdt-client RD, Transmission MacOS; фокус на «rdt-client TB»" width="100%">
+   <img src="../screenshots/download-server-pick.jpg" alt="Панель «Скачать на сервер» со списком серверов: qBittorrent, rdt-client TB, rdt-client RD, Transmission MacOS; фокус на «rdt-client RD»" width="100%">
 
    <img src="../screenshots/download-server-added.jpg" alt="Сообщение «Добавлено в rdt-client TB» с кнопкой OK" width="100%">
 

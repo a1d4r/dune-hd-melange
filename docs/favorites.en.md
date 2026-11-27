@@ -16,7 +16,7 @@ Melange keeps what you started and what you saved for later in catalog rows, fir
 
 4. With **MENU** on a movie card you can mark it as watched ("Mark as watched" or "Mark as unwatched") or open its "Dune card".
 
-   <img src="../screenshots/progress-card-menu.jpg" alt="MENU on the Melange card for Last Night in Soho: Mark as watched, Dune card, Settings" width="100%">
+   <img src="../screenshots/progress-card-menu.jpg" alt="Melange card for Last Night in Soho, marked as watched, the Actions panel on the right: Watch from, Mark as unwatched in focus, Dune card, Melange settings" width="100%">
 
 5. The clock on the top bar of the catalog opens everything you started, movies and series together. "Continue Watching" in **POP UP** opens it too.
 
@@ -32,7 +32,7 @@ Melange keeps what you started and what you saved for later in catalog rows, fir
 
 7. On a poster, press **POP UP** to add it to Favorites or remove it, mark it as watched or unwatched, or, in Continue Watching, remove it from the row. To bring everything removed back at once, choose "Restore removed" in **POP UP** on the Continue Watching screen (the clock on the top bar opens it).
 
-   <img src="../screenshots/progress-popup.jpg" alt="POP UP on Game of Thrones in Continue Watching: Watch from…, Remove from Continue Watching, Mark as watched, Remove from Favorites, then Movies, Series, Continue Watching, Favorites, On TorrServer, Search, Settings" width="100%">
+   <img src="../screenshots/progress-popup.jpg" alt="POP UP on Game of Thrones in Continue Watching: Watch from, Remove from Continue Watching, Mark as watched, Remove from Favorites, then Movies, Series, Continue Watching, Favorites, On TorrServer, Search, Settings" width="100%">
 
 8. Melange Favorites is separate from Dune Favorites. To bring movies and series over from Dune Favorites, on the Favorites screen press **POP UP** on a tile (on the empty screen, the heart tile) and choose "Add from Dune Favorites". You see "Added from Dune Favorites: N".
 
