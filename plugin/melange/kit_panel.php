@@ -46,6 +46,16 @@ function mel_kp_row_id($id)
     return MEL_KP . '_r' . substr(md5($id), 0, 10);
 }
 
+// The kind of frame $f, by its description: check (a check list: items), else menu.
+/**
+ * @param MelKpFrame $f
+ * @return 'menu'|'check'
+ */
+function mel_kp_kind($f)
+{
+    return isset($f['desc']['items']) ? 'check' : 'menu';
+}
+
 // The focusable lines of frame $f in their order, each array(kind, key, g, j): kind item (of a menu), all, check (a line
 // of a check list), done; key the id of its item ('' for all and done); g its group in the view, j its place in the
 // last group (the list; -1 out of it).
@@ -56,7 +66,7 @@ function mel_kp_row_id($id)
 function mel_kp_lines($f)
 {
     $out = array();
-    if (!isset($f['desc']['items']))
+    if (mel_kp_kind($f) === 'menu')
     {
         $last = count($f['groups']) - 1;
         foreach ($f['groups'] as $g => $ids)
@@ -126,8 +136,8 @@ function mel_kp_frame($d)
     $title = (string) $d['title'];
     $f = array('desc' => $d, 'its' => array(), 'groups' => array(), 'cur' => 0, 'top' => 0, 'on' => array(),
         'order' => array(), 'move' => false);
-    $check = isset($d['items']);
-    foreach ($check ? array($d['items']) : (isset($d['groups']) ? $d['groups'] : array()) as $items)
+    $check = mel_kp_kind($f) === 'check';
+    foreach ($check && isset($d['items']) ? array($d['items']) : (isset($d['groups']) ? $d['groups'] : array()) as $items)
     {
         $ids = array();
         foreach ($items as $it)
@@ -263,7 +273,7 @@ function mel_kp_view($f, $back, $x)
     return array('id' => MEL_KP, 'title' => isset($d['title']) ? (string) $d['title'] : '', 'back' => $back,
         'sub' => isset($d['sub']) ? (string) $d['sub'] : '', 'dim' => mel_kp_dim($f), 'x' => $x,
         'groups' => array_values($groups), 'top' => $f['top'], 'done' => $done,
-        'hint' => isset($d['items']) && isset($d['move']) ? (string) $d['move'] : '',
+        'hint' => mel_kp_kind($f) === 'check' && isset($d['move']) ? (string) $d['move'] : '',
         'note' => isset($d['note']) ? (string) $d['note'] : '');
 }
 
@@ -506,7 +516,7 @@ function mel_kp_key($k)
     $lines = mel_kp_lines($f);
     // An empty menu: no line.
     $l = isset($lines[$f['cur']]) ? $lines[$f['cur']] : array('', '', -1, -1);
-    $check = isset($f['desc']['items']);
+    $check = mel_kp_kind($f) === 'check';
     $back = $k === 'return' || $k === 'left' || ($k === 'enter' && $l[0] === 'done');
     if ($f['move'] && in_array($k, array('enter', 'right', 'left', 'return'), true))
         $f['move'] = false;
