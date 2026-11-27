@@ -1833,20 +1833,20 @@ function mel_oc_watch_in($c, $q = -1, $e = -1)
 
 // ENTER on episode $x of the meta of card $c (the row; the link of streams, mel_dl_streams), $ep the episode the card
 // offers (mel_oc_pick; null none): its list (mel_oc_ep_list); one not out yet: the message (mel_oc_soon_msg).
-// $src: the profile of "Смотреть из…", '' none. $own: the params of the own input of the screen of the card the reply
+// $src: the profile of "Смотреть из…", '' none. $to: the params of the own input of the screen of the card the reply
 // is to (c: its key; p, n: of "Смотреть из…"), null: no screen of the card (a link, a tile).
 /**
  * @param MelOcCard $c
  * @param MelCardEp $x
  * @param MelOcEp|null $ep
  * @param string $src
- * @param array<string, string>|null $own
+ * @param array<string, string>|null $to
  * @return MelAction
  */
-function mel_oc_ep_watch($c, $x, $ep, $src = '', $own = null)
+function mel_oc_ep_watch($c, $x, $ep, $src = '', $to = null)
 {
     if ($x['soon'])
-        return mel_oc_soon_msg($x, $c['ui'], $own);
+        return mel_oc_soon_msg($x, $c['ui'], $to);
     return mel_oc_ep_list($c, $x, $ep, $src);
 }
 
@@ -1868,21 +1868,21 @@ function mel_oc_ep_list($c, $x, $ep, $src)
 
 // "Смотреть из…" (src_watch) of card $c from the source of profile $src: the list ENTER opens - on episode $x in focus
 // in the row (mel_oc_ep_watch), else of "Смотреть" (a series: of the episode offered, $ep of mel_oc_pick; one not out
-// yet - the message, as ENTER on it in the row). $own: as of mel_oc_ep_watch.
+// yet - the message, as ENTER on it in the row). $to: as of mel_oc_ep_watch.
 /**
  * @param MelOcCard $c
  * @param MelOcEp|null $ep
  * @param MelCardEp|null $x
  * @param string $src
- * @param array<string, string>|null $own
+ * @param array<string, string>|null $to
  * @return MelAction
  */
-function mel_oc_watch_from($c, $ep, $x, $src, $own = null)
+function mel_oc_watch_from($c, $ep, $x, $src, $to = null)
 {
     if (!$x && $ep)
         $x = mel_oc_ep($c, $ep['s'], $ep['e']);
     if ($x)
-        return mel_oc_ep_watch($c, $x, $ep, $src, $own);
+        return mel_oc_ep_watch($c, $x, $ep, $src, $to);
     return $ep ? mel_oc_watch($c, $ep['q'], $ep['e'], $ep, $src) : mel_oc_watch($c, -1, -1, null, $src);
 }
 
@@ -2242,16 +2242,17 @@ function mel_oc_after_stop($post, $dune)
     return mel_cw_apply($a);
 }
 
-// card_src (p, n of the profile of "Смотреть из" of the panel; s, e of the episode in focus) of card $c of layout $l: the list
+// card_src (p, n of the profile of "Смотреть из" of the panel; s, e of the episode in focus) of card $c ($key) of layout $l: the list
 // from that profile (mel_oc_watch_from; the episode of s, e, else that of "Смотреть"); the profile gone or not ready:
 // its dialog (mel_src_watch_pick), no request.
 /**
+ * @param string $key
  * @param MelOcCard $c
  * @param MelOcNav $l
  * @param stdClass $in
  * @return MelAction|null
  */
-function mel_oc_src($c, $l, $in)
+function mel_oc_src($key, $c, $l, $in)
 {
     list($src, $err) = mel_src_watch_pick($in, $c['ui']);
     if ($src === '' || $err)
@@ -2259,12 +2260,13 @@ function mel_oc_src($c, $l, $in)
     $s = mel_catv_in($in, 's');
     $x = $s !== '' ? mel_oc_ep($c, intval($s), intval(mel_catv_in($in, 'e'))) : null;
     return mel_oc_watch_from($c, $l['ep'], $x, $src,
-        array('c' => mel_catv_in($in, 'c'), 'p' => $src, 'n' => mel_catv_in($in, 'n')));
+        array('c' => $key, 'p' => $src, 'n' => mel_catv_in($in, 'n')));
 }
 
 // card_anyway ("Всё равно искать" of the message of an episode not out yet, mel_oc_soon_msg: s, e of the episode; p, n
 // of "Смотреть из…" when the message was to it) of card $c ($key) of layout $l: what ENTER on the episode does when it
-// is out - its list (mel_oc_ep_list), from the profile of p (gone or not ready since: its dialog, as mel_oc_src).
+// is out - its list (mel_oc_ep_list), from the profile of p (gone or not ready since: its dialog, as mel_oc_src); out
+// by the meta since the message - the same list. No such episode in the meta: nothing.
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -2283,8 +2285,11 @@ function mel_oc_anyway($key, $c, $l, $in)
     }
     $x = mel_oc_ep($c, intval(mel_catv_in($in, 's')), intval(mel_catv_in($in, 'e')));
     if (!$x)
+    {
+        mel_log("card: own $key: anyway: no such episode in the meta, nothing");
         return null;
-    mel_log("card: own $key: S{$x['s']}E{$x['e']} not out yet, the search anyway");
+    }
+    mel_log("card: own $key: S{$x['s']}E{$x['e']} " . ($x['soon'] ? 'not out yet, the search anyway' : 'out since, the search'));
     return mel_oc_ep_list($c, $x, $l['ep'], $src);
 }
 
@@ -2381,7 +2386,7 @@ function mel_oc_input($in, $control)
     }
     $l = isset($c['nav']) ? $c['nav'] : mel_oc_layout($c);
     if ($control === 'card_src')
-        return mel_oc_src($c, $l, $in);
+        return mel_oc_src($key, $c, $l, $in);
     if ($control === 'card_anyway')
         return mel_oc_anyway($key, $c, $l, $in);
     if ($control === 'card_lib_copies' || $control === 'card_lib_copy')
