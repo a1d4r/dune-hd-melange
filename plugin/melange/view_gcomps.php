@@ -2157,19 +2157,13 @@ function mel_gc_fold($st, $lv)
 // the details screen (back on this one, mel_gc_pos finds the line in 'gc'); from MENU
 // (mel_gc_menu) gc_info has the row in 'i', a row not in the list: outdated. All by the lines of the screen
 // (mel_gc_lv): a release by its row of $st['rows']; on the line of the group ENTER folds or unfolds it (mel_gc_fold),
-// INFO nothing. Under the open overlay of the list (the panel "Действия": a key sent before its map was applied): none,
-// nothing changed - the panel was built for the row of the cursor.
+// INFO nothing. Under the open overlay of the list no key of its map comes here (the gate, kit_ovl.php).
 /**
  * @param stdClass $in
  * @return MelAction|null
  */
 function mel_gc_input($in)
 {
-    if (isset($in->rid) && is_string($in->rid) && mel_ovl_open_on($in->rid))
-    {
-        mel_log('list: a key under the overlay, none');
-        return null;
-    }
     $st = Mel::$state;
     $live = $st && isset($in->rid) && $in->rid === $st['rid'];
     $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;

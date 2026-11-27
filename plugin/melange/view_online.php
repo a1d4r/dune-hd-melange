@@ -1634,13 +1634,6 @@ function mel_lpv_input($in, $control)
         return mel_lpv_on($st['movie'], $st['s'], $st['e']) ? mel_lpv_search_open($st, 'open') : null;
     if (empty($st['lp_on']) || !isset($st['lp']))
         return null;
-    // Under the open overlay of the list (a panel: a key sent before its map was applied): none, nothing changed - the
-    // panel was built for this view of the list.
-    if (mel_ovl_open_on($st['rid']))
-    {
-        mel_log("lampac: $control under the overlay, none");
-        return null;
-    }
     if ($control === 'lp_move')
         return mel_lpv_move($in, $st);
     if ($control === 'lp_pick')

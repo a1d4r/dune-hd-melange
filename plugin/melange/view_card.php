@@ -1723,8 +1723,9 @@ function mel_oc_has_lib($l)
 }
 
 // card_load, the timer of the screen of card $key laid out as $l (mel_oc_acts), in this order:
-//   - its overlay open (the panel "Действия", the window of the copies; a tick sent before the overlay took the timer
-//     off): nothing - the screen put anew would take it away; the close gives the timer back, a tick then;
+//   - its overlay open: nothing - the screen put anew would take it away; the close gives the timer back, a tick then.
+//     The tick of a map with the timer the gate stops before (kit_ovl.php); here the one it does not know - the record
+//     of a window this tick itself opened (lw_auto, no rows asked) has no timer, the screen of the shell still has;
 //   - a window to open (lw_auto, mel_lib_win_card: "Continue" of the native with a copy to choose): the flag off, the
 //     window W2 of those copies over the screen, mode first (mel_lib_win_open) - before the rows of posters (mel_oc_load
 //     puts the screen anew, its nav gone); only of the copies the screen shown has (mel_oc_lib_shown of nav), else
@@ -2250,7 +2251,7 @@ function mel_oc_list($key, $c, $l, $pos)
 // card_load (the timer, mel_oc_tick), card_src ("Смотреть из", mel_oc_src), card_lib_copies,
 // card_lib_copy (the copies on the disk, mel_oc_lib_input), card_finish (back from the player, mel_oc_finish) of the
 // card c. MENU: the panel "Действия" over the card (mel_oc_menu_open; of no card mel_oc_menu_lost); under the open
-// overlay of the card its arrows, ENTER and MENU are not done. The keys: the place of mel_oc_next by change_gcomps, null at an edge; the layout of the screen shown
+// overlay of the card no key of its map comes here (the gate, kit_ovl.php). The keys: the place of mel_oc_next by change_gcomps, null at an edge; the layout of the screen shown
 // (nav), else laid out anew. ENTER on a button: "Watch" - a movie with a copy on the disk: the file (mel_oc_lib_start),
 // the episode offered with one: its file (mel_oc_lib_start_ep), else the list of the episode offered, an
 // episode not out yet - the focus to it in the row, the button of the list - into it or out (mel_oc_list);
@@ -2270,13 +2271,6 @@ function mel_oc_list($key, $c, $l, $pos)
 function mel_oc_input($in, $control)
 {
     $key = mel_catv_in($in, 'c');
-    // Under the open overlay of the card (the panel "Действия", the window of the copies: a key sent before its map
-    // was applied): none, nothing changed - the panel was built for this place of the card.
-    if (in_array($control, array('card_move', 'card_enter', 'card_menu'), true) && mel_ovl_open_on($key))
-    {
-        mel_log("card: own $key: $control under the overlay, none");
-        return null;
-    }
     $c = mel_oc_get($key);
     if ($control === 'card_menu' && !$c)
         return mel_oc_menu_lost($key, isset($in->parent_sel_state) ? $in->parent_sel_state : null);

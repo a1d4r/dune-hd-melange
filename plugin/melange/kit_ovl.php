@@ -29,10 +29,15 @@
 //   - open, its screen gone with no word to the plugin (the shell closed it, a list replaced by a new rid): pushed out
 //     as the oldest when more than MEL_OVL_REST wait; a key of a live screen pushed out so is of a stale one;
 //   - a php_server restart: all of them (memory only).
-// The gate: under its open overlay (mel_ovl_open_on) a screen does none of its own keys that would change what the
-// overlay was built for - the list of releases gc_move, gc_pick, gc_info (mel_gc_input), the online list all after
-// its service ones (mel_lpv_input), the own card card_move, card_enter, card_menu and its tick (mel_oc_input,
-// mel_oc_tick).
+//
+// The gate, one for every screen (mel_ovl_under, the first thing mel_handle_user_input does): under its open overlay
+// a screen does none of the keys of its own map nor the tick of its timer (sent before the map of the overlay was
+// applied) - the overlay was built for the screen as it is. By the record, no names: an input with the control of an
+// action of the map of the record and the params of it that name the owner (rid, c, from). Not gated: the event of
+// the player (GUI_EVENT_MENU_PLAYBACK_FINISH: no key), the colour keys of egg.php (no param names the screen), and
+// what the map does not have - the keys of the overlay, the action of an item or of «Готово» (it comes after the
+// close), the inputs of the player and of the dialogs of the shell over the screen (next, the ticks of a wait of the
+// shell). A tick of a timer the record does not have: its screen (mel_oc_tick).
 
 // The id of the slot of the overlay.
 define('MEL_OVL', 'ovl');
@@ -243,16 +248,56 @@ function mel_ovl_drop($owner)
     unset(MelOvl::$rest[$owner]);
 }
 
-// The overlay of the screen of owner $owner is open, in hand or waiting: a key of the screen itself (sent before the map of the overlay was
-// applied) and a tick of its timer are not done under it.
+// The overlay of the screen of owner $owner is open, in hand or waiting.
 /**
  * @param string $owner
  * @return bool
  */
 function mel_ovl_open_on($owner)
 {
-    return isset(MelOvl::$rest[$owner]) ||
-        (MelOvl::$st && MelOvl::$st['open'] && MelOvl::$st['scr']['owner'] === $owner);
+    $st = isset(MelOvl::$rest[$owner]) ? MelOvl::$rest[$owner] : MelOvl::$st;
+    return $st && $st['open'] && $st['scr']['owner'] === $owner;
+}
+
+// The gate (see above): input $in is a key of the map or the tick of the timer of a screen under its open overlay, in
+// hand or waiting - the control of an action of its map with the params of it that name the owner (the other params
+// may differ: P+ of a map built without it) - not done, logged.
+/**
+ * @param stdClass $in
+ * @return bool
+ */
+function mel_ovl_under($in)
+{
+    $control = isset($in->control_id) ? $in->control_id : null;
+    $all = array_values(MelOvl::$rest);
+    if (MelOvl::$st)
+        $all[] = MelOvl::$st;
+    foreach ($all as $st)
+    {
+        if (!$st['open'])
+            continue;
+        $owner = $st['scr']['owner'];
+        foreach ($st['scr']['map'] as $ev => $a)
+        {
+            $p = isset($a[GuiAction::params]) && is_array($a[GuiAction::params]) ? $a[GuiAction::params] : array();
+            if ($ev === GUI_EVENT_MENU_PLAYBACK_FINISH || !isset($p['control_id']) || $p['control_id'] !== $control)
+                continue;
+            $named = false;
+            foreach ($p as $k => $v)
+            {
+                if (!is_string($v) || strpos($v, $owner) === false)
+                    continue;
+                if (!isset($in->$k) || $in->$k !== $v)
+                    continue 2;
+                $named = true;
+            }
+            if (!$named)
+                continue;
+            mel_log("kit overlay: $control of the screen under its overlay, none");
+            return true;
+        }
+    }
+    return false;
 }
 
 // A key $in of an overlay of a stale screen - no o, or no state of its owner (a php_server restart, a screen put anew,

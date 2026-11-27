@@ -2459,6 +2459,9 @@ function mel_handle_user_input($in)
     $control = isset($in->control_id) ? $in->control_id : null;
     if ($handler !== 'aio')
         return null;
+    // A key or the tick of a screen under its open overlay: not done, before any work on it (the gate, kit_ovl.php).
+    if (mel_ovl_under($in))
+        return null;
     mel_mlv_input($control);
     // The colour keys of every screen, before the screen's own work (egg.php): a run of them plays the video and
     // puts back the sort of new lists from before the run; else (RuTube failed too) the key goes on, in a list it sorts.
