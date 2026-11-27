@@ -184,9 +184,10 @@ function mel_lpv_srcs_id($p)
     return 's|' . $p;
 }
 
-// The panel "Балансеры" of the online list $st, a check list: the sources of lampac_sources in their order by their
-// names, those on checked, "Переместить", the cursor on the source of the row under the cursor of the list (its gc)
-// when it is on, else on the first line; "Готово": lp_srcs_done (mel_lpv_srcs_apply). No choice saved: null.
+// The panel "Балансеры" of the online list $st, a check list: "Все балансеры" (checked when all are on, ENTER turns
+// them all on), the sources of lampac_sources in their order by their names, those on checked, "Переместить", the
+// cursor on the source of the row under the cursor of the list (its gc) when it is on, else on the first source;
+// "Готово": lp_srcs_done (mel_lpv_srcs_apply). No choice saved: null.
 /**
  * @param MelState $st
  * @return MelKpSubDesc|null
@@ -207,8 +208,9 @@ function mel_lpv_srcs_panel($st)
     }
     if (!$items)
         return null;
-    return array('title' => mel_tr($lang, 'lp_srcs_title'), 'dim' => 'dim_strong', 'items' => $items,
-        'move' => mel_tr($lang, 'kp_move'), 'done' => mel_lpv_done($lang, 'lp_srcs_done', $st['rid'])) + $cur;
+    return array('title' => mel_tr($lang, 'lp_srcs_title'), 'dim' => 'dim_strong', 'all' => mel_tr($lang, 'lp_srcs_all'),
+        'all_mode' => 'every', 'items' => $items, 'move' => mel_tr($lang, 'kp_move'),
+        'done' => mel_lpv_done($lang, 'lp_srcs_done', $st['rid'])) + $cur + array('cur' => $items[0]['id']);
 }
 
 // View $v by choice $choice (lampac_sources after "Балансеры"), no request: its sources and rows of those turned

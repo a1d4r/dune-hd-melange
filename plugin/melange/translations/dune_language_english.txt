@@ -451,6 +451,7 @@ lp_card_via = Via
 lp_refresh_wait = Refresh is possible in {n} s
 lp_srcs_menu = Balancers
 lp_srcs_title = Balancers
+lp_srcs_all = All balancers
 lp_srcs_not_saved = Balancers not saved: settings file error on the Dune
 lp_errors_menu = Balancer errors
 lp_failed = {src}: no video

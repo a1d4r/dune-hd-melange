@@ -451,6 +451,7 @@ lp_card_via = Через
 lp_refresh_wait = Обновить можно через {n} с
 lp_srcs_menu = Балансеры
 lp_srcs_title = Балансеры
+lp_srcs_all = Все балансеры
 lp_srcs_not_saved = Балансеры не сохранены: ошибка файла настроек на Дюне
 lp_errors_menu = Ошибки балансеров
 lp_failed = {src}: видео не получить

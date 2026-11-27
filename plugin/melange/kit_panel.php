@@ -16,6 +16,8 @@
 //            the close: plugin_open_folder of a screen, a handle_user_input of the screen);
 //   a check list  title, sub, dim, cur (optional: the id of the item the cursor opens on), all (the label of the line
 //            «all», '' none: checked when no item is - no choice is all of them; ENTER on it unchecks the items),
+//            all_mode (optional, of a list with «all»: 'every' - the line «all» is checked when every item is, ENTER
+//            on it checks them all),
 //            items: array('id', 'label', 'count', 'on'), move (the label of the hint «› Переместить»: RIGHT takes a
 //            line; '' none), done (none: no line «Готово»): array('label', 'count' - «Выбрано: {n} из {m}»,
 //            'count_all' - optional, of a list with «all»: the count with no item checked, «Выбрано: все», 'act' -
@@ -212,8 +214,18 @@ function mel_kp_window($f)
     return $f;
 }
 
+// Does the line «all» of check list $f mean every item checked (all_mode 'every'), not none of them.
+/**
+ * @param MelKpFrame $f
+ * @return bool
+ */
+function mel_kp_all_every($f)
+{
+    return isset($f['desc']['all_mode']) && $f['desc']['all_mode'] === 'every';
+}
+
 // The view of line $l of frame $f in state $st ('', focus, move) for MelKit::panel_row, with the id of its group; $all:
-// is no item checked (the check of the line «all»).
+// the check of the line «all» (no item checked; all_mode 'every': every one).
 /**
  * @param MelKpFrame $f
  * @param array{string, string, int, int} $l
@@ -280,7 +292,7 @@ function mel_kp_view($f, $back, $x)
     $d = $f['desc'];
     $done = null;
     $groups = array();
-    $all = !in_array(true, $f['on'], true);
+    $all = !in_array(!mel_kp_all_every($f), $f['on'], true);
     foreach (mel_kp_lines($f) as $k => $l)
     {
         if ($l[0] === 'done')
@@ -348,7 +360,7 @@ function mel_kp_index($defs, $out = array())
 function mel_kp_looks($f)
 {
     $out = array();
-    $all = !in_array(true, $f['on'], true);
+    $all = !in_array(!mel_kp_all_every($f), $f['on'], true);
     foreach (mel_kp_lines($f) as $k => $l)
     {
         if ($l[0] === 'done')
@@ -523,8 +535,8 @@ function mel_kp_input($in)
 //               taken moves with it among the lines of the list (the geometry of two lines); a text: its page before
 //               and after (at the first and the last none);
 //   enter       a menu item: its submenu in the place of the panel, else its action after the close; a check line:
-//               its check (and «all» and the count); «all»: the check lines unchecked (it alone checked); «Готово»: as
-//               return;
+//               its check (and «all» and the count); «all»: the check lines unchecked (it alone checked; all_mode
+//               'every': all of them checked); «Готово»: as return;
 //   right       an item with a submenu: as enter; a check line of a list with move: taken (⇅);
 //   left        a submenu: as return;
 //   return      a submenu: back to the panel on the same item; a menu or a check list itself: the close; a check
@@ -609,7 +621,7 @@ function mel_kp_key($k)
         return mel_ovl_close($it['act']);
     }
     elseif ($k === 'enter' && $l[0] === 'all')
-        $f['on'] = array_fill_keys(array_keys($f['on']), false);
+        $f['on'] = array_fill_keys(array_keys($f['on']), mel_kp_all_every($f));
     elseif ($k === 'enter' && $l[0] === 'check')
         $f['on'][$l[1]] = !$f['on'][$l[1]];
     elseif ($k === 'right' && $l[0] === 'check' && isset($f['desc']['move']) && $f['desc']['move'] !== '')
