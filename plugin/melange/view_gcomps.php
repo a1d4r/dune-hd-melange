@@ -797,7 +797,8 @@ function mel_gc_row_badges($b)
 // mel_badge_word: resolution, source, picture, sound), its size - «Джентльмены (2019) · 4K · Remux · Dolby Vision ·
 // Atmos · 24.2 ГБ»; of an episode the title with no year, then its number, and of a season pack (the row: pack) the
 // size of the whole release last - «Во все тяжкие · S2 E3 · 4K · WebRip · 3.4 ГБ · пак 55.2 ГБ» (the owner
-// 27.11.2026, (28)); what the row does not have is left out. Not cut here: the window does.
+// 27.11.2026, (28)); a series with no number of an episode: as an episode, without the number; what the row does not
+// have is left out. Not cut here: the window does.
 /**
  * @param MelState $st
  * @param int $i
@@ -808,11 +809,12 @@ function mel_gc_facts($st, $i)
     $r = $st['rows'][$i];
     $lang = mel_gc_lang($st);
     list($title, $ep) = mel_gc_title($st);
-    $parts = $ep !== '' ? array($st['movie']['title'], $ep) : array($title);
+    $series = $ep !== '' || $st['movie']['series'];
+    $parts = $series ? array($st['movie']['title'], $ep) : array($title);
     foreach (mel_gc_row_badges($r['badges']) as $id)
         $parts[] = mel_badge_word($id);
     $parts[] = $r['size'] > 0 ? mel_size_str($r['size'], $lang) : '';
-    $parts[] = $ep !== '' && $r['pack'] > 0 ? mel_tr($lang, 'gc_pack') . ' ' . mel_size_str($r['pack'], $lang) : '';
+    $parts[] = $series && $r['pack'] > 0 ? mel_tr($lang, 'gc_pack') . ' ' . mel_size_str($r['pack'], $lang) : '';
     return implode(" \xC2\xB7 ", array_values(array_filter($parts, 'strlen')));
 }
 
