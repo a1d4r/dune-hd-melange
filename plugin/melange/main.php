@@ -2737,9 +2737,9 @@ function mel_handle_user_input($in)
         return mel_lib_next($in);
     if ($control === 'lib_next_pick')
         return mel_lib_next_pick($in);
-    if ($control === 'pre_via')
+    if ($control === 'pre_via' || $control === 'gc_via')
         return mel_pre_via($in);
-    if ($control === 'pre_twin')
+    if ($control === 'pre_twin' || $control === 'gc_twin')
         return mel_pre_twin_go($in);
     if ($control === 'finish')
         return mel_finish($in);

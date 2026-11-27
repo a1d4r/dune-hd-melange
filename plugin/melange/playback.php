@@ -471,7 +471,8 @@ function mel_pre_twin($rows, $r, $failed)
 // kept in Mel::$alt till then (tried: the services refused of the row, rows: the
 // rows refused, both on this start). A row of one copy without the button: the
 // error as before 0.56.0 (mel_error, mel_next_failed); with it, a dialog of the
-// same text. OK, under the player "Stop", closes it.
+// same text. OK, under the player "Stop", closes it. Over the list it was started
+// from: the dialog of ours (mel_ask), the buttons in a line with their icons.
 /**
  * @param MelState $st
  * @param MelRow $r
@@ -525,14 +526,27 @@ function mel_pre_failed($st, $r, $pos, $lazy, $pre, $from)
         $r['copy'] + 1, count($r['copies']), $svc) : '') . ", row $i -> dialog, " .
         ($offer ? implode(', ', $offer) . ' offered' : 'no other copy left'));
     $lines = array_merge(mel_dialog_lines(mel_tr($lang, $key)), mel_dialog_lines($detail));
-    $buttons = array();
+    // A start from the list on screen ($from its rid): its buttons are own inputs of the list (gc_via, gc_twin), run
+    // after the close of the window (mel_ask: the dialog of ours over the list). Else - under the player, "Continue"
+    // with no list under it - a window of the shell, its buttons pressed while it is open (pre_via, pre_twin).
+    $own = !$lazy && $from !== '' && $from === $st['rid'];
+    $bs = array();
     if ($via)
-        $buttons[str_replace('{svc}', $via['service'] !== '' ? $via['service'] : $via['svc'], mel_tr($lang, 'pre_via'))] =
-            mel_input('pre_via', array('rid' => $st['rid'], 'i' => strval($i), 'svc' => $via['svc']));
+        $bs[] = mel_btn(str_replace('{svc}', $via['service'] !== '' ? $via['service'] : $via['svc'], mel_tr($lang, 'pre_via')),
+            'k_icon_zap', mel_gc_act($own ? 'gc_via' : 'pre_via', $st['rid'], array('i' => strval($i), 'svc' => $via['svc'])));
     if ($twin >= 0)
-        $buttons[mel_tr($lang, $st['e'] > 0 ? 'pre_twin' : 'pre_twin_movie')] =
-            mel_input('pre_twin', array('rid' => $st['rid'], 'i' => strval($i), 'j' => strval($twin)));
+        $bs[] = mel_btn(mel_tr($lang, $st['e'] > 0 ? 'pre_twin' : 'pre_twin_movie'),
+            'k_icon_film', mel_gc_act($own ? 'gc_twin' : 'pre_twin', $st['rid'], array('i' => strval($i), 'j' => strval($twin))));
     $name = $copies ? str_replace('{svc}', $r['service'] !== '' ? $r['service'] : $svc, mel_tr($lang, 'pre_svc_failed')) : '';
+    if ($own)
+    {
+        $bs[] = mel_btn('OK', 'k_icon_check');
+        return $copies ? mel_ask($name, array(mel_tr($lang, $key), $detail), 'k_icon_circle-x', 'err', $bs) :
+            mel_ask(mel_tr($lang, $key), array($detail), 'k_icon_circle-x', 'err', $bs);
+    }
+    $buttons = array();
+    foreach ($bs as $b)
+        $buttons[$b['label']] = $b['act'];
     if ($lazy)
     {
         $buttons[mel_tr($lang, 'next_stop')] = mel_input('next_stop');
@@ -572,9 +586,10 @@ function mel_alt_of($in)
 /**
  * @param MelAlt $a
  * @param int $sel
+ * @param stdClass $in
  * @return MelAction
  */
-function mel_alt_start($a, $sel)
+function mel_alt_start($a, $sel, $in)
 {
     $st = $a['st'];
     // The list of the start, not always the one on screen (mel_op_of_screen): the pair of its profiles (spec v2 §1.9).
@@ -586,7 +601,20 @@ function mel_alt_start($a, $sel)
         // The list on screen, if it is that one: its cursor now.
         mel_playing($a['from'], Mel::$state && Mel::$state['rid'] === $st['rid'] ? Mel::$state : $st, $sel);
     }
-    return mel_close_and($act);
+    return mel_alt_reply($in, $act);
+}
+
+// Reply $a to input $in of a button of the dialog of mel_pre_failed: a button of the window of the shell (pre_via,
+// pre_twin) is pressed while it is open - the window closed, then $a; one of the list (gc_via, gc_twin) comes after
+// the close of its window - $a as it is (an error or a dialog over the list again: the dialog of ours, mel_dlg_of).
+/**
+ * @param stdClass $in
+ * @param MelAction $a
+ * @return MelAction
+ */
+function mel_alt_reply($in, $a)
+{
+    return isset($in->control_id) && strpos($in->control_id, 'gc_') === 0 ? $a : mel_close_and($a);
 }
 
 // "Via <service>" of the dialog of mel_pre_failed (rid, i: the row, svc: the
@@ -609,12 +637,12 @@ function mel_pre_via($in)
     if (!$a || !$row || !$ok)
     {
         mel_log('via: not the dialog of the last start, nothing');
-        return mel_close_and(mel_error('err_list_expired'));
+        return mel_alt_reply($in, mel_error('err_list_expired'));
     }
     $st = $a['st'];
     Mel::$via = array('k' => $st['movie']['dune_id'], 'hash' => mel_row_rel($row), 'svc' => $svc);
     mel_log(sprintf('via: %s, row %d: %s refused, %s chosen', mel_ep_tag($st), $a['i'], implode(', ', $a['tried']), $svc));
-    return mel_alt_start($a, $a['i']);
+    return mel_alt_start($a, $a['i'], $in);
 }
 
 // "The same episode from another release" of the dialog of mel_pre_failed (rid, i: the
@@ -632,13 +660,13 @@ function mel_pre_twin_go($in)
     if (!$a || $j < 0 || $j !== $a['twin'] || !isset($a['st']['rows'][$j]))
     {
         mel_log('twin: not the dialog of the last start, nothing');
-        return mel_close_and(mel_error('err_list_expired'));
+        return mel_alt_reply($in, mel_error('err_list_expired'));
     }
     // "Via" chosen for the release refused dropped on purpose: row j is of another
     // release, the main Debrid (mel_main_svc takes Via for a row of its hash only anyway).
     Mel::$via = null;
     mel_log(sprintf('twin: %s, row %d refused, row %d of the same file chosen', mel_ep_tag($a['st']), $a['i'], $j));
-    return mel_alt_start($a, $j);
+    return mel_alt_start($a, $j, $in);
 }
 
 // --- Time of the operation: handle_user_input and play_action have 60 s;
