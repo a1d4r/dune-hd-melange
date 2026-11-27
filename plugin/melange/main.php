@@ -2544,7 +2544,7 @@ function mel_scr_of($in, $control)
 // Message $w a builder of a window of the shell said of it (Mel::$dlg, desc) as the simple dialog of ours
 // (mel_dlg_error_desc): the title - of a key, in the language of the shell as its %tr% gives it -, the text, the
 // button, the tone. The dispatcher (mel_dlg_of) and a tick of a wait of ours that ends by a message
-// (mel_ts_wait_end).
+// (mel_wait_end).
 /**
  * @param MelDlgSay $w
  * @return array<string, mixed>
@@ -2553,6 +2553,22 @@ function mel_dlg_say($w)
 {
     return mel_dlg_error_desc($w['ok'], $w['key'] !== '' ? mel_tr(mel_catv_lang(), $w['key']) : $w['title'], $w['text'],
         null, $w['tone']);
+}
+
+// The end of a wait by action $a, for its host (MelWaitTick, kit_dlg.php: the window of ours, or the dialog of the
+// shell of the same step): a message its builder said (Mel::$dlg: mel_error, mel_msg, mel_ts_fail) - dialog, its
+// description for the window of ours, and shell, the same message as the window of the shell; else post - the player,
+// a dialog over the player of a lazy episode, a list.
+/**
+ * @param MelAction $a
+ * @return array{post: MelAction}|array{dialog: array<string, mixed>, shell: MelAction}
+ */
+function mel_wait_end($a)
+{
+    $m = Mel::$dlg;
+    if ($m && $m['desc'] && $a === $m['shell'])
+        return array('dialog' => mel_dlg_say($m['desc']), 'shell' => $a);
+    return array('post' => $a);
 }
 
 // Reply $a to input $in of control $control: the window of the shell its builder said a message of (Mel::$dlg: this

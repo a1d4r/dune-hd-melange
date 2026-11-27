@@ -1162,19 +1162,15 @@ function mel_ts_wait_ctls($lang, $label, $v, $sec, $cancel)
     return $defs;
 }
 
-// The end of a wait by action $a, for its host (MelWaitTick): a message its builder said (Mel::$dlg: mel_ts_fail,
-// mel_error) - dialog, its description for the window of ours, and shell, the same message as the window of the
-// shell; else post - the player, a dialog over the player of a lazy episode, a list.
+// The list of rid $rid a wait of a start through TorrServer is of: the one on screen, or the one of a lazy episode
+// (Mel::$tswait, mel_next) - whatever its rid is, the caller checks it; null none.
 /**
- * @param MelAction $a
- * @return array{post: MelAction}|array{dialog: array<string, mixed>, shell: MelAction}
+ * @param string $rid
+ * @return MelState|null
  */
-function mel_ts_wait_end($a)
+function mel_ts_wait_st($rid)
 {
-    $m = Mel::$dlg;
-    if ($m && $m['desc'] && $a === $m['shell'])
-        return array('dialog' => mel_dlg_say($m['desc']), 'shell' => $a);
-    return array('post' => $a);
+    return Mel::$state && Mel::$state['rid'] === $rid ? Mel::$state : Mel::$tswait;
 }
 
 // One step of the wait of a start through TorrServer, the tick of a wait window (MelWaitTick, kit_dlg.php: the window
@@ -1182,7 +1178,7 @@ function mel_ts_wait_end($a)
 // $p, strings as the params of a tick of the shell: rid and i, the row of the list; pos; f, from; l: 1 lazy, 2
 // $miss_list of mel_ts_open; n, the ticks so far; b, the tick of the start of the preload, '' none yet. A "get" of the
 // torrent; its files -> playback, from 0 the preload of the file first (mel_ts_preload), then playback when it is done
-// (mel_ts_buf_done) or the time is out; gone or too long with no files -> the error (mel_ts_wait_end); else the
+// (mel_ts_buf_done) or the time is out; gone or too long with no files -> the error (mel_wait_end, main.php); else the
 // fields of the window (mel_ts_wait_view) and the data with its ticks.
 /**
  * @param array<string, string> $p
@@ -1192,12 +1188,11 @@ function mel_ts_wait_end($a)
 function mel_ts_wait_tick($p, $sec)
 {
     $i = intval($p['i']);
-    // The list on screen, or the one of a lazy episode (mel_next).
-    $st = Mel::$state && Mel::$state['rid'] === $p['rid'] ? Mel::$state : Mel::$tswait;
+    $st = mel_ts_wait_st($p['rid']);
     if (!$st || $p['rid'] !== $st['rid'] || !isset($st['rows'][$i]) || $st['rows'][$i]['hash'] === '')
     {
         mel_log('ts: tick of a list gone');
-        return mel_ts_wait_end(mel_error('err_list_expired'));
+        return mel_wait_end(mel_error('err_list_expired'));
     }
     // The list of the dialog, not always the one on screen (mel_op_of_screen): the pair of its profiles - the record, the
     // links of the next episodes and the markers of its source, not of the main one (spec v2 §1.9).
@@ -1232,15 +1227,15 @@ function mel_ts_wait_tick($p, $sec)
     {
         if ($p['b'] !== '')
             mel_log("ts: -> the player: $play");
-        return mel_ts_wait_end(mel_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1', $p['l'] === '2'));
+        return mel_wait_end(mel_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1', $p['l'] === '2'));
     }
     if ($err === '' && $code === 401)
-        return mel_ts_wait_end(mel_ts_fail($lang, mel_ts_auth_err(), '', $p['l'] === '1'));
+        return mel_wait_end(mel_ts_fail($lang, mel_ts_auth_err(), '', $p['l'] === '1'));
     // 404: TorrServer has it neither in memory nor in its DB (closed).
     if ($err === '' && $code === 404)
-        return mel_ts_wait_end(mel_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));
+        return mel_wait_end(mel_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));
     if ($out)
-        return mel_ts_wait_end(mel_ts_fail($lang, 'ts_err_timeout', $err !== '' ? $err : '', $p['l'] === '1'));
+        return mel_wait_end(mel_ts_fail($lang, 'ts_err_timeout', $err !== '' ? $err : '', $p['l'] === '1'));
     $v = mel_ts_wait_view($lang, $r['rate'], $j, $p['b'] !== '');
     $v['data'] = $p;
     return $v;
@@ -1278,7 +1273,7 @@ function mel_ts_tick($in)
     if (isset($r['shell']))
         return mel_close_and($r['shell']);
     // The step went on: the list and the row are there.
-    $st = Mel::$state && Mel::$state['rid'] === $p['rid'] ? Mel::$state : Mel::$tswait;
+    $st = mel_ts_wait_st($p['rid']);
     return mel_ts_wait_again(mel_ts_wait_ctls($st['lang'], $st['rows'][intval($p['i'])]['label'], $r, $sec,
         mel_input($p['l'] === '1' ? 'next_stop' : 'ts_cancel')), mel_ts_wait_acts(array_merge($r['data'], array('t' => $t))));
 }

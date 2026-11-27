@@ -7,7 +7,7 @@
 //
 // The screen puts mel_ovl_slot() last in its comp_defs and opens over itself, with the record of itself (MelOvlScreen,
 // kit_ovl.php), one of:
-// - a dialog, mel_dlg_open($scr, $d) (mel_dlg_error: the simple one, a title, a reason and one button). Its description
+// - a dialog, mel_dlg_open($scr, $d) (mel_dlg_error_desc: the simple one, a title, a reason and one button). Its description
 //   (MelDlgDesc): icon (k_icon_*), tone ('', warn, err, ok: the colour of the icon), title, text, buttons (1 to 3, each
 //   array('label', 'icon', 'act': run after the close, none: the close only)), focus (the button in focus first, default
 //   0), cancel (run after the close by RETURN, none: the close only). LEFT and RIGHT move the focus among the buttons, to
@@ -47,7 +47,7 @@
 // The keys of both (mel_dlg_press) are those of the error and wait screen of kit_scr.php too.
 // The errors and the messages with one button of our screens come here by the dispatcher, not by their code: the
 // builder of such a window of the shell says the message it is (mel_error, mel_msg: Mel::$dlg, main.php), and the reply
-// that is this window to an own input of a screen with an overlay opens mel_dlg_error over it (mel_dlg_of); what has no
+// that is this window to an own input of a screen with an overlay opens the simple dialog over it (mel_dlg_of); what has no
 // look of ours approved keeps the window of the shell (mel_msg with tone false, mel_dialog).
 // The state, MelOvl::$st: dlg (MelDlg), wt (MelWait) while open; wt_done (MelWaitDone) after a wait closed by a
 // button.
@@ -320,22 +320,6 @@ function mel_dlg_error_desc($ok, $title, $text = '', $act = null, $tone = null)
     return array('icon' => $tone === 'err' ? 'k_icon_circle-x' : 'k_icon_triangle-alert',
         'tone' => $tone, 'title' => $title, 'text' => $text,
         'buttons' => array(array('label' => $ok, 'icon' => 'k_icon_check', 'act' => $act)), 'cancel' => $act);
-}
-
-// The simple dialog of an error (mel_dlg_error_desc) open over the screen of record $scr (mel_error of a screen of
-// ours).
-/**
- * @param array<string, mixed> $scr
- * @param string $ok
- * @param string $title
- * @param string $text
- * @param MelAction|null $act
- * @param string|null $tone
- * @return MelAction|null
- */
-function mel_dlg_error($scr, $ok, $title, $text = '', $act = null, $tone = null)
-{
-    return mel_dlg_open($scr, mel_dlg_error_desc($ok, $title, $text, $act, $tone));
 }
 
 // The timer of a wait and its map: the keys (wt_key) and the tick (wt_tick, show_dialog_delay MEL_WAIT_DELAY) of the
