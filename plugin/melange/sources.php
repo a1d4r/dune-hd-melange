@@ -222,7 +222,7 @@ function mel_gc_src_dialog($title, $lang, $res, $more = null)
     $why = isset($res['errors']) ? mel_errors_labels($lang, $res['errors']) : array();
     if (!$why)
         return mel_msg($title, array(mel_tr($lang, $res['error']), $res['detail']));
-    if (isset($res['errors']) && mel_errors_total($res['errors']) === 1)
+    if (mel_errors_total($res['errors']) === 1)
         return mel_msg($title, array($res['errors']['lines'][0]));
     if ($more)
         return mel_ask($title, array(mel_tr($lang, $res['error'])), 'k_icon_circle-x', 'err', array(mel_btn_ok(),
@@ -361,7 +361,7 @@ function mel_src_releases($st, $id, $tag, $title, $sel_state, $errs = null)
             mel_op_apply($old);
             // The button of two reasons and more alone (one is the text of the dialog).
             $more = mel_errors_shown($errors) && mel_errors_total($errors) > 1 ? $errs : null;
-            if ($more)
+            if ($more && Mel::$state)
                 Mel::$state['src_errors'] = $errors;
             return mel_gc_src_dialog($title, $st['lang'], $r, $more);
         }
